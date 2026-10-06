@@ -1,0 +1,381 @@
+[
+  {
+    "deviceId": 0,
+    "type": 0,
+    "name": "X870 EAGLE WIFI7",
+    "vendor": "Gigabyte",
+    "description": "IT5711-GIGABYTE V1.0.29.6",
+    "version": "1.0.29.6",
+    "serial": "0x5711C000",
+    "location": "HID: \\\\?\\HID#VID_048D&PID_5711&MI_01&Col02#a&2dc6c1ab&0&0001#{4d1e55b2-f16f-11cf-88cb-001111000030}",
+    "activeMode": 1,
+    "modes": [
+      {
+        "id": 0,
+        "name": "Direct",
+        "value": 65535,
+        "flags": 48,
+        "speedMin": 0,
+        "speedMax": 0,
+        "colorMin": 0,
+        "colorMax": 0,
+        "speed": 0,
+        "direction": 0,
+        "colorMode": 1,
+        "colors": [],
+        "flagList": [
+          "brightness",
+          "perLedColor"
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      },
+      {
+        "id": 1,
+        "name": "Static",
+        "value": 1,
+        "flags": 336,
+        "speedMin": 0,
+        "speedMax": 0,
+        "colorMin": 1,
+        "colorMax": 1,
+        "speed": 0,
+        "direction": 0,
+        "colorMode": 2,
+        "colors": [
+          {
+            "red": 100,
+            "green": 226,
+            "blue": 193
+          }
+        ],
+        "flagList": [
+          "brightness",
+          "modeSpecificColor",
+          "manualSave"
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 160
+      },
+      {
+        "id": 2,
+        "name": "Breathing",
+        "value": 2,
+        "flags": 465,
+        "speedMin": 9,
+        "speedMax": 0,
+        "colorMin": 1,
+        "colorMax": 1,
+        "speed": 4,
+        "direction": 0,
+        "colorMode": 2,
+        "colors": [
+          {
+            "red": 0,
+            "green": 0,
+            "blue": 0
+          }
+        ],
+        "flagList": [
+          "speed",
+          "brightness",
+          "modeSpecificColor",
+          "randomColor",
+          "manualSave"
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 100,
+        "brightness": 100
+      },
+      {
+        "id": 3,
+        "name": "Flashing",
+        "value": 3,
+        "flags": 465,
+        "speedMin": 9,
+        "speedMax": 0,
+        "colorMin": 1,
+        "colorMax": 1,
+        "speed": 4,
+        "direction": 0,
+        "colorMode": 2,
+        "colors": [
+          {
+            "red": 0,
+            "green": 0,
+            "blue": 0
+          }
+        ],
+        "flagList": [
+          "speed",
+          "brightness",
+          "modeSpecificColor",
+          "randomColor",
+          "manualSave"
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      },
+      {
+        "id": 4,
+        "name": "Color Cycle",
+        "value": 4,
+        "flags": 273,
+        "speedMin": 9,
+        "speedMax": 0,
+        "colorMin": 0,
+        "colorMax": 0,
+        "speed": 4,
+        "direction": 0,
+        "colorMode": 0,
+        "colors": [],
+        "flagList": [
+          "speed",
+          "brightness",
+          "manualSave"
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      },
+      {
+        "id": 5,
+        "name": "Double Flash",
+        "value": 15,
+        "flags": 465,
+        "speedMin": 9,
+        "speedMax": 0,
+        "colorMin": 1,
+        "colorMax": 1,
+        "speed": 4,
+        "direction": 0,
+        "colorMode": 2,
+        "colors": [
+          {
+            "red": 0,
+            "green": 0,
+            "blue": 0
+          }
+        ],
+        "flagList": [
+          "speed",
+          "brightness",
+          "modeSpecificColor",
+          "randomColor",
+          "manualSave"
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      },
+      {
+        "id": 6,
+        "name": "Random",
+        "value": 8,
+        "flags": 272,
+        "speedMin": 0,
+        "speedMax": 0,
+        "colorMin": 0,
+        "colorMax": 0,
+        "speed": 0,
+        "direction": 0,
+        "colorMode": 0,
+        "colors": [],
+        "flagList": [
+          "brightness",
+          "manualSave"
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      },
+      {
+        "id": 7,
+        "name": "Wave 1",
+        "value": 9,
+        "flags": 1296,
+        "speedMin": 0,
+        "speedMax": 0,
+        "colorMin": 0,
+        "colorMax": 0,
+        "speed": 0,
+        "direction": 0,
+        "colorMode": 0,
+        "colors": [],
+        "flagList": [
+          "brightness",
+          "manualSave",
+          null
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      },
+      {
+        "id": 8,
+        "name": "Wave 2",
+        "value": 10,
+        "flags": 1296,
+        "speedMin": 0,
+        "speedMax": 0,
+        "colorMin": 0,
+        "colorMax": 0,
+        "speed": 0,
+        "direction": 0,
+        "colorMode": 0,
+        "colors": [],
+        "flagList": [
+          "brightness",
+          "manualSave",
+          null
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      },
+      {
+        "id": 9,
+        "name": "Wave 3",
+        "value": 11,
+        "flags": 1296,
+        "speedMin": 0,
+        "speedMax": 0,
+        "colorMin": 0,
+        "colorMax": 0,
+        "speed": 0,
+        "direction": 0,
+        "colorMode": 0,
+        "colors": [],
+        "flagList": [
+          "brightness",
+          "manualSave",
+          null
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      },
+      {
+        "id": 10,
+        "name": "Wave 4",
+        "value": 12,
+        "flags": 1296,
+        "speedMin": 0,
+        "speedMax": 0,
+        "colorMin": 0,
+        "colorMax": 0,
+        "speed": 0,
+        "direction": 0,
+        "colorMode": 0,
+        "colors": [],
+        "flagList": [
+          "brightness",
+          "manualSave",
+          null
+        ],
+        "brightnessMin": 0,
+        "brightnessMax": 255,
+        "brightness": 255
+      }
+    ],
+    "zones": [
+      {
+        "name": "ARGB_V2_1",
+        "id": 0,
+        "type": 1,
+        "ledsMin": 0,
+        "ledsMax": 256,
+        "ledsCount": 1,
+        "resizable": true
+      },
+      {
+        "name": "ARGB_V2_2",
+        "id": 1,
+        "type": 1,
+        "ledsMin": 0,
+        "ledsMax": 256,
+        "ledsCount": 1,
+        "resizable": true
+      },
+      {
+        "name": "ARGB_V2_3",
+        "id": 2,
+        "type": 1,
+        "ledsMin": 0,
+        "ledsMax": 256,
+        "ledsCount": 1,
+        "resizable": true
+      },
+      {
+        "name": "Chipset Accent",
+        "id": 3,
+        "type": 0,
+        "ledsMin": 1,
+        "ledsMax": 1,
+        "ledsCount": 1,
+        "resizable": false
+      },
+      {
+        "name": "LED_C",
+        "id": 4,
+        "type": 0,
+        "ledsMin": 1,
+        "ledsMax": 1,
+        "ledsCount": 1,
+        "resizable": false
+      }
+    ],
+    "leds": [
+      {
+        "name": "ARGB_V2_1, LED 1",
+        "value": 5
+      },
+      {
+        "name": "ARGB_V2_2, LED 1",
+        "value": 6
+      },
+      {
+        "name": "ARGB_V2_3, LED 1",
+        "value": 7
+      },
+      {
+        "name": "Chipset Accent",
+        "value": 2
+      },
+      {
+        "name": "LED_C",
+        "value": 4
+      }
+    ],
+    "colors": [
+      {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+      },
+      {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+      },
+      {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+      },
+      {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+      },
+      {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+      }
+    ]
+  }
+]

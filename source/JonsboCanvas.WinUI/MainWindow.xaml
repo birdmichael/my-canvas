@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window
+    x:Class="JonsboCanvas_WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:JonsboCanvas_WinUI"
+    Title="My Canvas">
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="Base" />
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar x:Name="AppTitleBar" Title="My Canvas">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="Assets/AppIcon.ico" />
+            </TitleBar.IconSource>
+        </TitleBar>
+
+        <NavigationView
+            x:Name="Navigation"
+            Grid.Row="1"
+            IsBackButtonVisible="Collapsed"
+            IsPaneToggleButtonVisible="False"
+            IsSettingsVisible="False"
+            OpenPaneLength="220"
+            PaneDisplayMode="Left"
+            SelectionChanged="Navigation_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem x:Name="HomeItem" Tag="home">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE80F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="ContentItem" Tag="content">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7F4;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="WallpaperItem" Tag="wallpaper">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE91B;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="LightingItem" Tag="lighting">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE781;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="DevicesItem" Tag="devices">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE772;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem x:Name="SettingsItem" Tag="settings">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
+
+            <Grid>
+                <Frame x:Name="ContentFrame" />
+                <InfoBar
+                    x:Name="NoticeBar"
+                    MaxWidth="720"
+                    Margin="24,12,24,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    IsOpen="False"
+                    Severity="Informational" />
+            </Grid>
+        </NavigationView>
+    </Grid>
+</Window>

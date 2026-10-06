@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="JonsboCanvas_WinUI.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:JonsboCanvas_WinUI">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="1240" Padding="{StaticResource PagePadding}" Spacing="16">
+
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource PageTitleStyle}" Text="{local:Str Key=Home.Title}" />
+                    <TextBlock x:Name="ConnectionText" Style="{StaticResource PageSubtitleStyle}" />
+                </StackPanel>
+                <Button
+                    x:Name="ConnectButton"
+                    Grid.Column="1"
+                    MinWidth="120"
+                    VerticalAlignment="Center"
+                    Click="ConnectButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ProgressRing x:Name="ConnectProgress" Width="16" Height="16" IsActive="False" Visibility="Collapsed" />
+                        <FontIcon x:Name="ConnectIcon" FontSize="14" Glyph="&#xE768;" />
+                        <TextBlock x:Name="ConnectLabel" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <InfoBar
+                x:Name="ProblemBar"
+                IsClosable="False"
+                IsOpen="False"
+                Severity="Warning" />
+
+            <!-- Long screen -->
+            <Border Padding="20,20,20,16" Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="16">
+                    <local:ScreenPreview x:Name="LongPreview" AspectRatio="0.240625" />
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="{local:Str Key=Home.Long}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse x:Name="LongDot" Width="8" Height="8" VerticalAlignment="Center" />
+                                <TextBlock x:Name="LongStateText" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <local:Segmented x:Name="LongMode" Grid.Column="1" VerticalAlignment="Center" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="5*" MinWidth="260" MaxWidth="420" />
+                    <ColumnDefinition Width="7*" MinWidth="320" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Square screen -->
+                <Border Padding="20,20,20,16" VerticalAlignment="Top" Style="{StaticResource CardStyle}">
+                    <StackPanel Spacing="16">
+                        <local:ScreenPreview x:Name="SquarePreview" AspectRatio="1" />
+                        <StackPanel Spacing="2">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="{local:Str Key=Home.Square}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse x:Name="SquareDot" Width="8" Height="8" VerticalAlignment="Center" />
+                                <TextBlock x:Name="SquareStateText" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <local:Segmented x:Name="SquareMode" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Column="1" Spacing="16">
+                    <!-- Now playing -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="56"
+                                Height="56"
+                                Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                                CornerRadius="6">
+                                <FontIcon FontSize="22" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Glyph="&#xEC4F;" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Style="{StaticResource CaptionStyle}" Text="{local:Str Key=Home.NowPlaying}" />
+                                <TextBlock x:Name="SongText" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                <TextBlock x:Name="ArtistText" Style="{StaticResource CaptionStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                            </StackPanel>
+                            <Button
+                                x:Name="MusicButton"
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                Click="MusicButton_Click" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Lighting -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Border
+                                    x:Name="LightSwatch"
+                                    Width="56"
+                                    Height="56"
+                                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="28" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Style="{StaticResource CaptionStyle}" Text="{local:Str Key=Home.Lighting}" />
+                                    <TextBlock x:Name="LightTitle" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock x:Name="LightSource" Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                                <ToggleSwitch
+                                    x:Name="LightToggle"
+                                    Grid.Column="2"
+                                    MinWidth="0"
+                                    VerticalAlignment="Center"
+                                    OffContent=""
+                                    OnContent=""
+                                    Toggled="LightToggle_Toggled" />
+                            </Grid>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Glyph="&#xE706;" />
+                                <Slider
+                                    x:Name="BrightnessSlider"
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    ValueChanged="BrightnessSlider_ValueChanged" />
+                                <TextBlock
+                                    x:Name="BrightnessText"
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource CaptionStyle}"
+                                    TextAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Wallpaper -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Width="112"
+                                Height="63"
+                                Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                                CornerRadius="6">
+                                <Image x:Name="WallpaperThumb" Stretch="UniformToFill" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Style="{StaticResource CaptionStyle}" Text="{local:Str Key=Home.Wallpaper}" />
+                                <TextBlock x:Name="WallpaperTitle" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                <TextBlock x:Name="WallpaperSource" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                            <Button x:Name="NextWallpaperButton" Grid.Column="2" VerticalAlignment="Center" Click="NextWallpaperButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontSize="14" Glyph="&#xE72C;" />
+                                    <TextBlock Text="{local:Str Key=Wallpaper.Next}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

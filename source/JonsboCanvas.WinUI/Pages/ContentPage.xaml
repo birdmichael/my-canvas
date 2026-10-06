@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="JonsboCanvas_WinUI.ContentPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:JonsboCanvas_WinUI">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="{StaticResource PageMaxWidth}" Padding="{StaticResource PagePadding}" Spacing="4">
+            <TextBlock Style="{StaticResource PageTitleStyle}" Text="{local:Str Key=Content.Title}" />
+            <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{local:Str Key=Content.Subtitle}" />
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Content.Music}" />
+            <local:SettingsCard x:Name="SyncCard" Glyph="&#xE93C;" Header="{local:Str Key=Content.Sync}">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Ellipse x:Name="SyncDot" Width="8" Height="8" VerticalAlignment="Center" />
+                    <TextBlock x:Name="SyncState" VerticalAlignment="Center" Style="{StaticResource CaptionStyle}" />
+                    <Button x:Name="SyncButton" Click="SyncButton_Click" />
+                </StackPanel>
+            </local:SettingsCard>
+            <local:SettingsCard Description="{local:Str Key=Content.Lyrics.Hint}" Glyph="&#xE8D2;" Header="{local:Str Key=Content.Lyrics}">
+                <ComboBox x:Name="LyricPicker" MinWidth="220" SelectionChanged="LyricPicker_SelectionChanged" />
+            </local:SettingsCard>
+            <local:SettingsCard Description="{local:Str Key=Content.Fps.Hint}" Glyph="&#xE916;" Header="{local:Str Key=Content.Fps}">
+                <ComboBox x:Name="FpsPicker" MinWidth="220" SelectionChanged="FpsPicker_SelectionChanged" />
+            </local:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Content.Clock}" />
+            <local:SettingsCard Description="{local:Str Key=Content.Clock24.Hint}" Glyph="&#xE823;" Header="{local:Str Key=Content.Clock24}">
+                <ToggleSwitch x:Name="Clock24Toggle" Toggled="Clock24Toggle_Toggled" />
+            </local:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Content.Hardware}" />
+            <local:SettingsCard Description="{local:Str Key=Content.Refresh.Hint}" Glyph="&#xE9D9;" Header="{local:Str Key=Content.Refresh}">
+                <ComboBox x:Name="RefreshPicker" MinWidth="220" SelectionChanged="RefreshPicker_SelectionChanged" />
+            </local:SettingsCard>
+
+            <TextBlock Margin="1,20,0,0" Style="{StaticResource CaptionStyle}" Text="{local:Str Key=Content.ModesHint}" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

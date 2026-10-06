@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\JonsboCanvas.WinUI\Core\LegacyJsonSerializer.cs" Link="LegacyJsonSerializer.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\RenderCadence.cs" Link="RenderCadence.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\TrayWindowPolicy.cs" Link="TrayWindowPolicy.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\LaunchPolicy.cs" Link="LaunchPolicy.cs" />
+    <Compile Include="..\JonsboCanvas\FrameRotation.cs" Link="FrameRotation.cs" />
+    <Compile Include="..\JonsboCanvas\AppLanguage.cs" Link="AppLanguage.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\FrameSendPolicy.cs" Link="FrameSendPolicy.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\LogRotationPolicy.cs" Link="LogRotationPolicy.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\AppAssetPaths.cs" Link="AppAssetPaths.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\CollectorActivationPolicy.cs" Link="CollectorActivationPolicy.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\DisplayResumePolicy.cs" Link="DisplayResumePolicy.cs" />
+    <Compile Include="..\JonsboCanvas.WinUI\Core\MusicLightEnvelope.cs" Link="MusicLightEnvelope.cs" />
+  </ItemGroup>
+</Project>

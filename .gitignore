@@ -1,0 +1,55 @@
+# Local Codex state
+.agents/
+.codex/
+
+# Local capture and scratch data
+work/
+
+# The installed app (built from source/ by source/publish.ps1) and its runtime data
+app/
+
+# Local toolchain, test renders and vendor material
+source/tools/
+source/test-output/
+source/docs/lighting-research/OpenRGB/
+source/docs/lighting-research/OpenRGB.zip
+source/docs/lighting-research/source.zip
+source/docs/lighting-research/gcc/
+source/docs/lighting-research/sdk/
+source/docs/lighting-research/source/
+
+# Build output
+**/bin/
+**/obj/
+**/.vs/
+**/artifacts/
+**/publish/
+**/AppPackages/
+*.user
+*.suo
+*.binlog
+*.log
+
+# Runtime, capture, smoke-test, and benchmark data
+source/*-data/
+source/*-data-*/
+source/*-test/
+source/*-test-*/
+source/*-smoke/
+source/*-smoke-*/
+
+# Legacy app build/probe output
+source/JonsboCanvas/*.exe
+source/JonsboCanvas/*.log
+source/JonsboCanvas/*.txt
+source/JonsboCanvas/config.json
+source/JonsboCanvas/preview*.png
+source/JonsboCanvas/gif-frame-*.png
+
+# WinUI visual QA output (generated locally)
+source/JonsboCanvas.WinUI/*.png
+source/JonsboCanvas.WinUI/audit-*/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

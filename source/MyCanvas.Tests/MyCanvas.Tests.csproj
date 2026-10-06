@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="10.0.0" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.0" />
+    <Compile Include="../JonsboCanvas/AppConfig.cs" />
+    <Compile Include="../JonsboCanvas/AppLanguage.cs" />
+    <Compile Include="../JonsboCanvas/EmbeddedRuntime.cs" />
+    <Compile Include="../JonsboCanvas/Metrics.cs" />
+    <Compile Include="../JonsboCanvas/NeteaseLauncher.cs" />
+    <Compile Include="../JonsboCanvas/NeteaseCdpBridge.cs" />
+    <Compile Include="../JonsboCanvas/NeteaseMedia.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/LegacyJsonSerializer.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/Log.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/LogRotationPolicy.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/SerialJpegDisplay.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/DualLayoutRenderer.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/DualLayoutRenderer.Hardware.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/DualLayoutRenderer.Lyrics.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/DualLayoutRenderer.Folia.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/DualLayoutRenderer.Timing.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/WallpaperService.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/DominantColor.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/SystemAccent.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/StartupTaskManager.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/WeatherService.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/ScreenModePolicy.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/DualDisplayController.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/FrameSendPolicy.cs" />
+    <Compile Include="../JonsboCanvas/NativeDisplay.cs" />
+    <Compile Include="../JonsboCanvas/FrameRotation.cs" />
+  </ItemGroup>
+</Project>

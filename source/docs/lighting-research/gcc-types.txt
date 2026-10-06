@@ -1,0 +1,146 @@
+ASSEMBLY COMMDLL\RGBFI.dll
+ASSEMBLY COMMDLL\RgbCommon.dll
+System.Int32 RgbCommon.InvkGHidApi::ConnectDevice(System.UInt16,System.UInt16,System.UInt16,System.UInt16,RgbCommon.HID_ReportByteLengt[]) IMPORT GHidApi.dll!dllexp_ConnectDevice NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkGHidApi::DisconnectDevice(System.UInt16,System.UInt16,System.Byte) IMPORT GHidApi.dll!dllexp_DisconnectDevice NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkGHidApi::GetConnectedList(System.UInt16,System.UInt16,RgbCommon.Connected_Devices[]) IMPORT GHidApi.dll!dllexp_GetConnectedList NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkGHidApi::WriteDataToDevice(System.UInt16,System.UInt16,System.Byte,System.Byte[],System.Byte) IMPORT GHidApi.dll!dllexp_WriteDataToDevice NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkGHidApi::ReadDataFromDevice(System.UInt16,System.UInt16,System.Byte,System.Byte[],System.Byte) IMPORT GHidApi.dll!dllexp_ReadDataFromDevice NoMangle, CallConvCdecl
+TYPE RgbCommon.HID_ReportByteLengt layout=Public, SequentialLayout, Sealed, Serializable, BeforeFieldInit pack=-1 size=-1
+System.UInt16 RgbCommon.HID_ReportByteLengt::FeatureLength -1 
+System.UInt16 RgbCommon.HID_ReportByteLengt::InputReportLength -1 
+System.UInt16 RgbCommon.HID_ReportByteLengt::OutputReportLength -1 
+TYPE RgbCommon.Connected_Devices layout=Public, SequentialLayout, Sealed, Serializable, BeforeFieldInit pack=-1 size=-1
+System.Int32 RgbCommon.Connected_Devices::devNum -1 
+RgbCommon.McuOnDevice RgbCommon.Connected_Devices::device -1 
+System.UInt32 RgbCommon.InvkSMBCtrl::LibInitial() IMPORT SMBCtrl.dll!dllexp_LibInitial NoMangle, CallConvCdecl
+System.Void RgbCommon.InvkSMBCtrl::GetModelName(System.Byte[]) IMPORT SMBCtrl.dll!dllexp_GetModelName NoMangle, CallConvCdecl
+System.Void RgbCommon.InvkSMBCtrl::AssignTestId() IMPORT SMBCtrl.dll!dllexp_AssignTestId NoMangle, CallConvCdecl
+System.Void RgbCommon.InvkSMBCtrl::SetSMBMutex() IMPORT SMBCtrl.dll!dllexp_SetSMBMutex NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::MCU_Rw(System.Byte,System.Byte,System.Byte,System.Byte&,System.Byte,System.UInt32) IMPORT SMBCtrl.dll!dllexp_MCU_Rw NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::MCU_Rw2(System.Byte,System.Byte,System.Byte,System.Byte&,System.Byte,System.UInt32) IMPORT SMBCtrl.dll!dllexp_MCU_Rw2 NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::SMB_ReceiveByte(System.Byte,System.Byte,System.Byte&) IMPORT SMBCtrl.dll!dllexp_SMB_ReceiveByte NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::SMB_Word_RW(System.Byte,System.Byte,System.Byte,System.UInt16,System.UInt16&) IMPORT SMBCtrl.dll!dllexp_SMB_Word_RW NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::SMB_Word_RW2(System.Byte,System.Byte,System.Byte,System.UInt16,System.UInt16&) IMPORT SMBCtrl.dll!dllexp_SMB_Word_RW2 NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::Skx_SMB_ByteRW(System.Byte,System.Byte,System.Byte,System.Byte,System.Byte&,System.Byte) IMPORT SMBCtrl.dll!dllexp_Skx_SMB_ByteRW NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::Skx_SMB_WordRW(System.Byte,System.Byte,System.Byte,System.UInt16,System.UInt16&,System.Byte) IMPORT SMBCtrl.dll!dllexp_Skx_SMB_WordRW NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::IT8295_Block_RW(System.Byte,System.Byte,System.Byte&,System.Byte[],System.Byte,System.UInt32) IMPORT SMBCtrl.dll!dllexp_IT8295_Block_RW NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::IT8295_Block_RW2(System.Byte,System.Byte,System.Byte&,System.Byte[],System.Byte,System.UInt32) IMPORT SMBCtrl.dll!dllexp_IT8295_Block_RW2 NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::Get_IT8295_FwVer(System.Byte,System.Byte,System.Byte&,System.Byte[]) IMPORT SMBCtrl.dll!dllexp_Get_IT8295_FwVer NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::I2C_ReceiveByte(System.Int32,System.Byte,System.Byte,System.Byte&) IMPORT SMBCtrl.dll!dllexp_I2C_ReceiveByte NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::I2C_Byte_RW(System.Int32,System.Byte,System.Byte,System.Byte,System.Byte&,System.Byte) IMPORT SMBCtrl.dll!dllexp_I2C_Byte_RW NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::I2C_Word_RW(System.Int32,System.Byte,System.Byte,System.UInt16,System.UInt16&,System.Byte) IMPORT SMBCtrl.dll!dllexp_I2C_Word_RW NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::I2C_Block_RW(System.Int32,System.Byte,System.Byte,System.Byte&,System.Byte[],System.Byte) IMPORT SMBCtrl.dll!dllexp_I2C_Block_RW NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::GetSIVId() IMPORT SMBCtrl.dll!dllexp_GetSIVId NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::GetLEDId() IMPORT SMBCtrl.dll!dllexp_GetLEDId NoMangle, CallConvCdecl
+System.UInt64 RgbCommon.InvkSMBCtrl::GetLEDId64() IMPORT SMBCtrl.dll!dllexp_GetLEDId64 NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetMBId() IMPORT SMBCtrl.dll!dllexp_GetMBId NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::I2C_Ready() IMPORT SMBCtrl.dll!dllexp_I2C_Ready NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetSkxCpuType() IMPORT SMBCtrl.dll!dllexp_GetSkxCpuType NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::ChkEzSetupSupport() IMPORT SMBCtrl.dll!dllexp_ChkEzSetupSupport NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetLedSetupDataLength() IMPORT SMBCtrl.dll!dllexp_GetLedSetupDataLength NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetLedPwrSteSetupDataLength() IMPORT SMBCtrl.dll!dllexp_GetLedPwrSteSetupDataLength NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetLedPwrOnSteSetupDataLength() IMPORT SMBCtrl.dll!dllexp_GetLedPwrOnSteSetupDataLength NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::GetLedModeSetupData(System.Text.StringBuilder,System.Int32) IMPORT SMBCtrl.dll!dllexp_GetLedModeSetupData NoMangle, CharSetUnicode, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::GetLedPwrStateSetupData(System.Text.StringBuilder,System.Int32) IMPORT SMBCtrl.dll!dllexp_GetLedPwrStateSetupData NoMangle, CharSetUnicode, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::GetLedPwrOnStateSetupData(System.Text.StringBuilder,System.Int32) IMPORT SMBCtrl.dll!dllexp_GetLedPwrOnStateSetupData NoMangle, CharSetUnicode, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetLedModeCurrentValue() IMPORT SMBCtrl.dll!dllexp_GetLedModeCurrentValue NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetLedPwrStateCurrentValue() IMPORT SMBCtrl.dll!dllexp_GetLedPwrStateCurrentValue NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetLedPwrOnStateCurrentValue() IMPORT SMBCtrl.dll!dllexp_GetLedPwrOnStateCurrentValue NoMangle, CallConvCdecl
+System.Int32 RgbCommon.InvkSMBCtrl::GetTrueColorVal() IMPORT SMBCtrl.dll!dllexp_GetTrueColorVal NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::SetLedModeToBios(System.Int32) IMPORT SMBCtrl.dll!dllexp_SetLedModeToBios NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::SetTrueColorValueToBios(System.UInt32) IMPORT SMBCtrl.dll!dllexp_SetTrueColorValueToBios NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::SetLedPwrStateToBios(System.Int32) IMPORT SMBCtrl.dll!dllexp_SetLedPwrStateToBios NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::SetLedPwrOnStateToBios(System.Int32) IMPORT SMBCtrl.dll!dllexp_SetLedPwrOnStateToBios NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::SaveToBios() IMPORT SMBCtrl.dll!dllexp_SaveToBios NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::ReGetSMBusInfo() IMPORT SMBCtrl.dll!dllexp_ReGetSMBusInfo NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::BeatGpioCtrl(System.Int32) IMPORT SMBCtrl.dll!dllexp_BeatGpioCtrl NoMangle, CallConvCdecl
+System.UInt32 RgbCommon.InvkSMBCtrl::Pch_D0_D1_D2_Ctrl(System.Int32,System.Int32,System.Int32) IMPORT SMBCtrl.dll!dllexp_Pch_D0_D1_D2_Ctrl NoMangle, CallConvCdecl
+System.Void RgbCommon.InvkSMBCtrl::DelayMicroSeconds(System.Single) IMPORT SMBCtrl.dll!dllexp_DelayMicroSeconds NoMangle, CallConvCdecl
+ASSEMBLY GBT_rgbMotherboard_UC\RgbMotherboard.dll
+TYPE RgbMotherboard.IT8297_5702.DataFormat_8297 layout=SequentialLayout, Sealed, BeforeFieldInit pack=-1 size=-1
+System.UInt32 RgbMotherboard.IT8297_5702.DataFormat_8297::Zone_Sel0 -1 
+System.UInt32 RgbMotherboard.IT8297_5702.DataFormat_8297::Zone_Sel1 -1 
+System.Byte RgbMotherboard.IT8297_5702.DataFormat_8297::Reserve0 -1 
+System.Byte RgbMotherboard.IT8297_5702.DataFormat_8297::Mode_Sel -1 
+System.Byte RgbMotherboard.IT8297_5702.DataFormat_8297::MaxBrightness -1 
+System.Byte RgbMotherboard.IT8297_5702.DataFormat_8297::MinBrightness -1 
+System.UInt32 RgbMotherboard.IT8297_5702.DataFormat_8297::dwColor0 -1 
+System.UInt32 RgbMotherboard.IT8297_5702.DataFormat_8297::dwColor1 -1 
+System.UInt16 RgbMotherboard.IT8297_5702.DataFormat_8297::wTime_base0 -1 
+System.UInt16 RgbMotherboard.IT8297_5702.DataFormat_8297::wTime_base1 -1 
+System.UInt16 RgbMotherboard.IT8297_5702.DataFormat_8297::wTime_base2 -1 
+System.UInt16 RgbMotherboard.IT8297_5702.DataFormat_8297::wTime_base3 -1 
+System.Byte RgbMotherboard.IT8297_5702.DataFormat_8297::CtrlVal0 -1 
+System.Byte RgbMotherboard.IT8297_5702.DataFormat_8297::CtrlVal1 -1 
+System.Byte RgbMotherboard.IT8297_5702.DataFormat_8297::CtrlOem0 -1 
+System.Byte RgbMotherboard.IT8297_5702.DataFormat_8297::CtrlOem1 -1 
+ASSEMBLY GBT_rgbMotherboard_UC\LedIoControl.dll
+System.Void LedIoControl.LEDFunc.NativeYccMethods::gb_outp(System.UInt32,System.Byte) IMPORT yccDrvV3.dll!gb_outp NoMangle, CallConvCdecl
+System.Void LedIoControl.LEDFunc.NativeYccMethods::gb_outpw(System.UInt32,System.UInt16) IMPORT yccDrvV3.dll!gb_outpw NoMangle, CallConvCdecl
+System.Void LedIoControl.LEDFunc.NativeYccMethods::gb_outpd(System.UInt32,System.UInt64) IMPORT yccDrvV3.dll!gb_outpd NoMangle, CallConvCdecl
+System.Byte LedIoControl.LEDFunc.NativeYccMethods::gb_inp(System.UInt32) IMPORT yccDrvV3.dll!gb_inp NoMangle, CallConvCdecl
+System.UInt16 LedIoControl.LEDFunc.NativeYccMethods::gb_inpw(System.UInt32) IMPORT yccDrvV3.dll!gb_inpw NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.NativeYccMethods::gb_inpd(System.UInt32) IMPORT yccDrvV3.dll!gb_inpd NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piCLed_Init() IMPORT cled.dll!CLed_Init NoMangle, CallConvCdecl
+System.UInt16 LedIoControl.LEDFunc.PchLedCtrl::piGetPcHealthCode() IMPORT cled.dll!GetPcHealthCode NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piChkEzSetupSupport() IMPORT cled.dll!ChkEzSetupSupport NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LEDFunc.PchLedCtrl::piGetAzaliaLedVal() IMPORT cled.dll!GetAzaliaLedVal NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LEDFunc.PchLedCtrl::piGetBiosOnOff() IMPORT cled.dll!GetBiosOnOff NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LEDFunc.PchLedCtrl::piGetRearPanelVal() IMPORT cled.dll!GetRearPanelVal NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LEDFunc.PchLedCtrl::piGetThreeColorVal() IMPORT cled.dll!GetThreeColorVal NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piGetTrueColorVal() IMPORT cled.dll!GetTrueColorVal NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piGetTrueColorVal_1() IMPORT cled.dll!GetTrueColorVal_1 NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piSetAzaliaLedMode(System.Int32) IMPORT cled.dll!SetAzaliaLedMode NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piSetBiosOnOff(System.Int32) IMPORT cled.dll!SetBiosOnOff NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piSetRearPanelLedMode(System.Int32) IMPORT cled.dll!SetRearPanelLedMode NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piSetThreeColorLedMode(System.Int32) IMPORT cled.dll!SetThreeColorLedMode NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piSetTrueColorLedMode(System.UInt32) IMPORT cled.dll!SetTrueColorLedMode NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piSetTrueColorLedMode_1(System.UInt32) IMPORT cled.dll!SetTrueColorLedMode_1 NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piSetFunction() IMPORT cled.dll!SetFunction NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piGetAzaliaLedSetupData(System.Byte[]) IMPORT cled.dll!GetAzaliaLedSetupData NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piGetRearPanelLedSetupData(System.Byte[]) IMPORT cled.dll!GetRearPanelLedSetupData NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piGetThreeColorLedSetupData(System.Byte[]) IMPORT cled.dll!GetThreeColorLedSetupData NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piInitPchLedCtrl() IMPORT cled.dll!InitPchLedCtrl NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piSetLedColor(System.UInt32) IMPORT cled.dll!SetLedColor NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LEDFunc.PchLedCtrl::piIsImplementAutoOption() IMPORT cled.dll!IsImplementAutoOption NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::LibInitial() IMPORT SMBCtrl.dll!dllexp_LibInitial NoMangle, CallConvCdecl
+System.Void LedIoControl.LED_V4.InvkSMBCtrl::GetModelName(System.Byte[]) IMPORT SMBCtrl.dll!dllexp_GetModelName NoMangle, CallConvCdecl
+System.Void LedIoControl.LED_V4.InvkSMBCtrl::AssignTestId() IMPORT SMBCtrl.dll!dllexp_AssignTestId NoMangle, CallConvCdecl
+System.Void LedIoControl.LED_V4.InvkSMBCtrl::SetSMBMutex() IMPORT SMBCtrl.dll!dllexp_SetSMBMutex NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::MCU_Rw(System.Byte,System.Byte,System.Byte,System.Byte&,System.Byte,System.UInt32) IMPORT SMBCtrl.dll!dllexp_MCU_Rw NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::SMB_Word_RW(System.Byte,System.Byte,System.Byte,System.UInt16,System.UInt16&) IMPORT SMBCtrl.dll!dllexp_SMB_Word_RW NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::Skx_SMB_ByteRW(System.Byte,System.Byte,System.Byte,System.Byte,System.Byte&,System.Byte) IMPORT SMBCtrl.dll!dllexp_Skx_SMB_ByteRW NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::Skx_SMB_WordRW(System.Byte,System.Byte,System.Byte,System.UInt16,System.UInt16&,System.Byte) IMPORT SMBCtrl.dll!dllexp_Skx_SMB_WordRW NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::IT8295_Block_RW(System.Byte,System.Byte,System.Byte&,System.Byte[],System.Byte,System.UInt32) IMPORT SMBCtrl.dll!dllexp_IT8295_Block_RW NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::Get_IT8295_FwVer(System.Byte,System.Byte,System.Byte&,System.Byte[]) IMPORT SMBCtrl.dll!dllexp_Get_IT8295_FwVer NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::GetSIVId() IMPORT SMBCtrl.dll!dllexp_GetSIVId NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::GetLEDId() IMPORT SMBCtrl.dll!dllexp_GetLEDId NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LED_V4.InvkSMBCtrl::GetMBId() IMPORT SMBCtrl.dll!dllexp_GetMBId NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LED_V4.InvkSMBCtrl::IsX299_Kabylake() IMPORT SMBCtrl.dll!dllexp_IsX299_Kabylake NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::ChkEzSetupSupport() IMPORT SMBCtrl.dll!dllexp_ChkEzSetupSupport NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LED_V4.InvkSMBCtrl::GetLedSetupDataLength() IMPORT SMBCtrl.dll!dllexp_GetLedSetupDataLength NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LED_V4.InvkSMBCtrl::GetLedPwrSteSetupDataLength() IMPORT SMBCtrl.dll!dllexp_GetLedPwrSteSetupDataLength NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::GetLedModeSetupData(System.Text.StringBuilder,System.Int32) IMPORT SMBCtrl.dll!dllexp_GetLedModeSetupData NoMangle, CharSetUnicode, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::GetLedPwrStateSetupData(System.Text.StringBuilder,System.Int32) IMPORT SMBCtrl.dll!dllexp_GetLedPwrStateSetupData NoMangle, CharSetUnicode, CallConvCdecl
+System.Int32 LedIoControl.LED_V4.InvkSMBCtrl::GetLedModeCurrentValue() IMPORT SMBCtrl.dll!dllexp_GetLedModeCurrentValue NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LED_V4.InvkSMBCtrl::GetLedPwrStateCurrentValue() IMPORT SMBCtrl.dll!dllexp_GetLedPwrStateCurrentValue NoMangle, CallConvCdecl
+System.Int32 LedIoControl.LED_V4.InvkSMBCtrl::GetTrueColorVal() IMPORT SMBCtrl.dll!dllexp_GetTrueColorVal NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::SetLedModeToBios(System.Int32) IMPORT SMBCtrl.dll!dllexp_SetLedModeToBios NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::SetTrueColorValueToBios(System.UInt32) IMPORT SMBCtrl.dll!dllexp_SetTrueColorValueToBios NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::SetLedPwrStateToBios(System.Int32) IMPORT SMBCtrl.dll!dllexp_SetLedPwrStateToBios NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::SaveToBios() IMPORT SMBCtrl.dll!dllexp_SaveToBios NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::ReGetSMBusInfo() IMPORT SMBCtrl.dll!dllexp_ReGetSMBusInfo NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::BeatGpioCtrl(System.Int32) IMPORT SMBCtrl.dll!dllexp_BeatGpioCtrl NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::Pch_D0_D1_D2_Ctrl(System.Int32,System.Int32,System.Int32) IMPORT SMBCtrl.dll!dllexp_Pch_D0_D1_D2_Ctrl NoMangle, CallConvCdecl
+System.Void LedIoControl.LED_V4.InvkSMBCtrl::DelayMicroSeconds(System.Single) IMPORT SMBCtrl.dll!dllexp_DelayMicroSeconds NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::Pch_D22_Ctrl(System.Int32) IMPORT SMBCtrl.dll!dllexp_Pch_D22_Ctrl NoMangle, CallConvCdecl
+System.UInt32 LedIoControl.LED_V4.InvkSMBCtrl::Pch_D22_D23_Ctrl(System.Int32,System.Int32,System.Boolean) IMPORT SMBCtrl.dll!dllexp_Pch_D22_D23_Ctrl NoMangle, CallConvCdecl
+ASSEMBLY GBT_rgbMotherboard_UC\GBT_rgbMotherboard_UC.dll
+GBT_rgbMotherboard_UC.MailSlot.SafeMailslotHandle GBT_rgbMotherboard_UC.MailSlot.NativeMethod1::CreateFile(System.String,GBT_rgbMotherboard_UC.MailSlot.FileDesiredAccess,GBT_rgbMotherboard_UC.MailSlot.FileShareMode,System.IntPtr,GBT_rgbMotherboard_UC.MailSlot.FileCreationDisposition,System.Int32,System.IntPtr) IMPORT kernel32.dll!CreateFile CharSetAuto, SupportsLastError, CallConvWinapi
+System.Boolean GBT_rgbMotherboard_UC.MailSlot.NativeMethod1::WriteFile(GBT_rgbMotherboard_UC.MailSlot.SafeMailslotHandle,System.Byte[],System.Int32,System.Int32&,System.IntPtr) IMPORT kernel32.dll!WriteFile CharSetAuto, SupportsLastError, CallConvWinapi
+System.IntPtr GBT_rgbMotherboard_UC.MailSlot.SafeLocalMemHandle::LocalFree(System.IntPtr) IMPORT kernel32.dll!LocalFree CharSetAuto, SupportsLastError, CallConvWinapi
+GBT_rgbMotherboard_UC.MailSlot.SafeMailslotHandle GBT_rgbMotherboard_UC.MailSlot.NativeMethod::CreateMailslot(System.String,System.UInt32,System.Int32,GBT_rgbMotherboard_UC.MailSlot.SECURITY_ATTRIBUTES) IMPORT kernel32.dll!CreateMailslot CharSetAuto, SupportsLastError, CallConvWinapi
+System.Boolean GBT_rgbMotherboard_UC.MailSlot.NativeMethod::GetMailslotInfo(GBT_rgbMotherboard_UC.MailSlot.SafeMailslotHandle,System.IntPtr,System.Int32&,System.Int32&,System.IntPtr) IMPORT kernel32.dll!GetMailslotInfo CharSetAuto, SupportsLastError, CallConvWinapi
+System.Boolean GBT_rgbMotherboard_UC.MailSlot.NativeMethod::ReadFile(GBT_rgbMotherboard_UC.MailSlot.SafeMailslotHandle,System.Byte[],System.Int32,System.Int32&,System.IntPtr) IMPORT kernel32.dll!ReadFile CharSetAuto, SupportsLastError, CallConvWinapi
+System.Boolean GBT_rgbMotherboard_UC.MailSlot.NativeMethod::ConvertStringSecurityDescriptorToSecurityDescriptor(System.String,System.Int32,GBT_rgbMotherboard_UC.MailSlot.SafeLocalMemHandle&,System.IntPtr) IMPORT advapi32.dll!ConvertStringSecurityDescriptorToSecurityDescriptor CharSetAuto, SupportsLastError, CallConvWinapi
+System.Boolean GBT_rgbMotherboard_UC.MailSlot.SafeMailslotHandle::CloseHandle(System.IntPtr) IMPORT kernel32.dll!CloseHandle CharSetAuto, SupportsLastError, CallConvWinapi

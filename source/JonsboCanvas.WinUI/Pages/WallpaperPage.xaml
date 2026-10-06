@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="JonsboCanvas_WinUI.WallpaperPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:JonsboCanvas_WinUI">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="{StaticResource PageMaxWidth}" Padding="{StaticResource PagePadding}" Spacing="4">
+            <TextBlock Style="{StaticResource PageTitleStyle}" Text="{local:Str Key=Wallpaper.Title}" />
+            <TextBlock Margin="0,0,0,16" Style="{StaticResource PageSubtitleStyle}" Text="{local:Str Key=Wallpaper.Subtitle}" />
+
+            <!-- Current photo -->
+            <Grid
+                x:Name="Hero"
+                Height="380"
+                Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                CornerRadius="8">
+                <Image x:Name="HeroImage" Stretch="UniformToFill" />
+                <ProgressRing x:Name="HeroProgress" Width="32" Height="32" IsActive="False" />
+                <Border VerticalAlignment="Bottom" Padding="24,48,24,20">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Offset="0" Color="#00000000" />
+                            <GradientStop Offset="1" Color="#CC000000" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Bottom" Spacing="2">
+                            <TextBlock
+                                x:Name="HeroTitle"
+                                Foreground="White"
+                                Style="{StaticResource SubtitleTextBlockStyle}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap" />
+                            <TextBlock x:Name="HeroInfo" Foreground="#CCFFFFFF" Style="{StaticResource CaptionTextBlockStyle}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="OpenButton" Click="OpenButton_Click" ToolTipService.ToolTip="{local:Str Key=Wallpaper.Open}">
+                                <FontIcon FontSize="14" Glyph="&#xE838;" />
+                            </Button>
+                            <Button x:Name="NextButton" Click="NextButton_Click" Style="{StaticResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontSize="14" Glyph="&#xE72C;" />
+                                    <TextBlock Text="{local:Str Key=Wallpaper.Next}" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <StackPanel x:Name="HistorySection">
+                <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Wallpaper.History}" />
+                <GridView
+                    x:Name="HistoryGrid"
+                    IsItemClickEnabled="True"
+                    ItemClick="HistoryGrid_ItemClick"
+                    SelectionMode="Single">
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="local:WallpaperThumb">
+                            <Grid Width="152" Height="86" CornerRadius="6">
+                                <Image Source="{x:Bind Image}" Stretch="UniformToFill" />
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+            </StackPanel>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Wallpaper.SourceSection}" />
+            <local:SettingsCard Description="{local:Str Key=Wallpaper.Source.Hint}" Glyph="&#xE774;" Header="{local:Str Key=Wallpaper.Source}">
+                <local:Segmented x:Name="SourceChoice" />
+            </local:SettingsCard>
+            <local:SettingsCard x:Name="FileCard" Glyph="&#xEB9F;" Header="{local:Str Key=Wallpaper.File}">
+                <Button Click="ChooseButton_Click" Content="{local:Str Key=Wallpaper.Choose}" />
+            </local:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Wallpaper.SyncSection}" />
+            <local:SettingsCard Description="{local:Str Key=Wallpaper.Desktop.Hint}" Glyph="&#xE7F8;" Header="{local:Str Key=Wallpaper.Desktop}">
+                <ToggleSwitch x:Name="DesktopToggle" Toggled="DesktopToggle_Toggled" />
+            </local:SettingsCard>
+            <local:SettingsCard Description="{local:Str Key=Wallpaper.Accent.Hint}" Glyph="&#xE790;" Header="{local:Str Key=Wallpaper.Accent}">
+                <ToggleSwitch x:Name="AccentToggle" Toggled="AccentToggle_Toggled" />
+            </local:SettingsCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

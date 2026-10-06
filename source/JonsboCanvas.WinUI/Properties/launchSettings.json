@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "JonsboCanvas.WinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "JonsboCanvas.WinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
