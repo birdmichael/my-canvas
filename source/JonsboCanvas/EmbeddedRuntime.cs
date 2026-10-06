@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -16,11 +17,13 @@ namespace JonsboCanvas
         {
             public string Resource;
             public string RelativePath;
+            public bool Compressed;
 
-            public EmbeddedFile(string resource, string relativePath)
+            public EmbeddedFile(string resource, string relativePath, bool compressed = false)
             {
                 Resource = resource;
                 RelativePath = relativePath;
+                Compressed = compressed;
             }
         }
 
@@ -28,7 +31,7 @@ namespace JonsboCanvas
         {
             new EmbeddedFile("MSDISPLAYSDKWRRAPER.dll", "MSDISPLAYSDKWRRAPER.dll"),
             new EmbeddedFile("libusb0.dll", "libusb0.dll"),
-            new EmbeddedFile("cpuidsdk.dll", "cpuidsdk.dll"),
+            new EmbeddedFile("cpuidsdk.dll.gz", "cpuidsdk.dll", true),
             new EmbeddedFile("themes.cyber-cyan.png", @"themes\cyber-cyan.png"),
             new EmbeddedFile("themes.molten-amber.png", @"themes\molten-amber.png"),
             new EmbeddedFile("themes.aurora-violet.png", @"themes\aurora-violet.png"),
@@ -99,12 +102,63 @@ namespace JonsboCanvas
             {
                 if (source == null)
                     throw new InvalidOperationException("EXE 内缺少资源：" + resourceName);
+                if (file.Compressed)
+                {
+                    ExtractCompressed(source, targetPath);
+                    return;
+                }
                 if (File.Exists(targetPath) && StreamsMatch(source, targetPath))
                     return;
                 source.Position = 0;
                 using (FileStream target = new FileStream(targetPath, FileMode.Create,
                     FileAccess.Write, FileShare.None))
                     source.CopyTo(target);
+            }
+        }
+
+        private static void ExtractCompressed(Stream source, string targetPath)
+        {
+            byte[] payload;
+            using (GZipStream gzip = new GZipStream(source, CompressionMode.Decompress))
+            using (MemoryStream buffer = new MemoryStream())
+            {
+                gzip.CopyTo(buffer);
+                payload = buffer.ToArray();
+            }
+
+            if (File.Exists(targetPath) && StreamsMatch(payload, targetPath))
+                return;
+
+            using (FileStream target = new FileStream(targetPath, FileMode.Create,
+                FileAccess.Write, FileShare.None))
+                target.Write(payload, 0, payload.Length);
+        }
+
+        private static bool StreamsMatch(byte[] payload, string path)
+        {
+            try
+            {
+                FileInfo file = new FileInfo(path);
+                if (payload.Length != file.Length)
+                    return false;
+                using (SHA256 hash = SHA256.Create())
+                {
+                    byte[] expected = hash.ComputeHash(payload);
+                    using (FileStream existing = File.OpenRead(path))
+                    {
+                        byte[] actual = hash.ComputeHash(existing);
+                        if (expected.Length != actual.Length)
+                            return false;
+                        for (int i = 0; i < expected.Length; i++)
+                            if (expected[i] != actual[i])
+                                return false;
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
             }
         }
 

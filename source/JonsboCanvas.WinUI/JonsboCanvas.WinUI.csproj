@@ -113,7 +113,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\JonsboCanvas\MSDISPLAYSDKWRRAPER.dll" LogicalName="JonsboCanvas.Embedded.MSDISPLAYSDKWRRAPER.dll" />
     <EmbeddedResource Include="..\JonsboCanvas\libusb0.dll" LogicalName="JonsboCanvas.Embedded.libusb0.dll" />
-    <EmbeddedResource Include="..\JonsboCanvas\cpuidsdk.dll" LogicalName="JonsboCanvas.Embedded.cpuidsdk.dll" />
+    <EmbeddedResource Include="..\JonsboCanvas\cpuidsdk.dll.gz" LogicalName="JonsboCanvas.Embedded.cpuidsdk.dll.gz" />
     <EmbeddedResource Include="..\JonsboCanvas\themes\cyber-cyan.png" LogicalName="JonsboCanvas.Embedded.themes.cyber-cyan.png" />
     <EmbeddedResource Include="..\JonsboCanvas\themes\molten-amber.png" LogicalName="JonsboCanvas.Embedded.themes.molten-amber.png" />
     <EmbeddedResource Include="..\JonsboCanvas\themes\aurora-violet.png" LogicalName="JonsboCanvas.Embedded.themes.aurora-violet.png" />

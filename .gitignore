@@ -43,6 +43,7 @@ source/JonsboCanvas/*.exe
 source/JonsboCanvas/*.log
 source/JonsboCanvas/*.txt
 source/JonsboCanvas/config.json
+source/JonsboCanvas/cpuidsdk.dll
 source/JonsboCanvas/preview*.png
 source/JonsboCanvas/gif-frame-*.png
 
