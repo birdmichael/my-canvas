@@ -6,7 +6,7 @@ namespace JonsboCanvas_WinUI;
 // Drives the case ARGB lighting through the motherboard's ITE IT5711 controller
 // using Gigabyte's GHidApi.dll. Verified on this machine (X870 EAGLE WIFI7):
 // enable built-in effects (CC 32 00), write a static color to every zone
-// (0..10) at Mode@11 / Brightness@12 / BGR@14..16, then apply (CC 28 FF 00).
+// (0..10) at Mode@11 / Brightness@12 / BGR@14..16, then apply (CC 28 FF 07).
 // Zone 7 is the ARGB hub the case fans / AIO / strips are wired to.
 internal static class LightingController
 {
@@ -62,7 +62,13 @@ internal static class LightingController
             }
             if (pending is { } p)
             {
-                WriteAll(p.r, p.g, p.b, p.bri);
+                if (!WriteAll(p.r, p.g, p.b, p.bri))
+                {
+                    // Keep the latest requested colour until a complete frame
+                    // succeeds, including static colours that will be deduped.
+                    lock (QueueSync) _pending ??= p;
+                    Thread.Sleep(250);
+                }
                 idle.Restart();
             }
             else if (stop)
@@ -97,44 +103,50 @@ internal static class LightingController
     private static double _statTotalMs, _statMaxMs;
     private static readonly Stopwatch StatClock = Stopwatch.StartNew();
 
-    private static void WriteAll(byte r, byte g, byte b, byte brightness)
+    private static bool WriteAll(byte r, byte g, byte b, byte brightness)
     {
         lock (Sync)
         {
             long started = Stopwatch.GetTimestamp();
+            bool success = false;
             try
             {
                 EnsureResolver();
                 if (!_connected)
                 {
                     var lengths = new ReportLengths[32];
-                    if (Connect(0x048D, 0x5711, 0xFF89, 0xCC, lengths) != 1) { DebugLog("connect failed"); return; }
-                    var enable = new byte[64];
-                    enable[0] = 0xCC; enable[1] = 0x32;
-                    Write(0x048D, 0x5711, 0, enable, 64);
+                    if (Connect(0x048D, 0x5711, 0xFF89, 0xCC, lengths) != 1)
+                        throw new IOException("connect failed");
                     _connected = true;
                     _statConnects++;
+                    // Select hardware effects rather than the Windows LampArray
+                    // or firmware beat override before streaming software beats.
+                    SendCommand(0x48);
+                    SendCommand(0x31);
+                    SendCommand(0x32);
+                    DebugLog("IT5711 hardware effects selected; apply mask=0x07FF");
                 }
 
                 for (int zone = 0; zone <= 10; zone++)
                 {
                     var e = new byte[64];
                     e[0] = 0xCC;
-                    e[1] = (byte)(0x20 + zone);
+                    // IT5711's extra zones live at 0x90..0x92. 0x28 is
+                    // the apply command, not the effect register for zone 8.
+                    e[1] = (byte)(zone < 8 ? 0x20 + zone : 0x90 + zone - 8);
                     BitConverter.GetBytes(1u << zone).CopyTo(e, 2);
                     e[11] = 1;                 // static
                     e[12] = brightness;
                     e[14] = b; e[15] = g; e[16] = r;  // BGR
-                    Write(0x048D, 0x5711, 0, e, 64);
+                    WriteChecked(e);
                 }
 
                 var apply = new byte[64];
-                apply[0] = 0xCC; apply[1] = 0x28; apply[2] = 0xFF; apply[3] = 0x00;
-                // A failed apply means the handle went stale (another app, sleep):
-                // reconnect on the next write.
-                if (Write(0x048D, 0x5711, 0, apply, 64) != 1) { _statFailures++; Release(); }
+                apply[0] = 0xCC; apply[1] = 0x28; apply[2] = 0xFF; apply[3] = 0x07;
+                WriteChecked(apply);
+                success = true;
             }
-            catch (Exception ex) { DebugLog("error " + ex.Message); Release(); }
+            catch (Exception ex) { _statFailures++; DebugLog("error " + ex.Message); Release(); }
             double ms = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             _statWrites++;
             _statTotalMs += ms;
@@ -147,7 +159,22 @@ internal static class LightingController
                 _statTotalMs = _statMaxMs = 0;
                 StatClock.Restart();
             }
+            return success;
         }
+    }
+
+    private static void SendCommand(byte command)
+    {
+        var packet = new byte[64];
+        packet[0] = 0xCC; packet[1] = command;
+        WriteChecked(packet);
+    }
+
+    private static void WriteChecked(byte[] packet)
+    {
+        int result = Write(0x048D, 0x5711, 0, packet, 64);
+        if (result != 1)
+            throw new IOException($"HID command 0x{packet[1]:X2} failed ({result})");
     }
 
     // Caller holds Sync.

@@ -61,7 +61,7 @@ internal sealed class WallpaperService : IDisposable
     private const string BingHost = "https://cn.bing.com";
     private const int CachedWallhavenImages = 48;
     private const int StoredWidth = 1920;
-    private static readonly string[] WallhavenQueries = { "landscape", "mountains", "space", "forest", "lake", "night sky" };
+    private static readonly string[] DefaultWallhavenQueries = { "landscape", "mountains", "space", "forest", "lake", "night sky" };
 
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
     private readonly string _bingDirectory;
@@ -72,6 +72,7 @@ internal sealed class WallpaperService : IDisposable
     private int _busy;
     private int _generation;
     private string _source = "bing";
+    private string[] _wallhavenQueries = DefaultWallhavenQueries;
     private volatile WallpaperSnapshot? _current;
     private volatile WallpaperSnapshot? _custom;
 
@@ -90,6 +91,15 @@ internal sealed class WallpaperService : IDisposable
         source = source == "wallhaven" ? "wallhaven" : "bing";
         if (source == _source) return;
         _source = source;
+        Interlocked.Increment(ref _generation);
+        Replace(ref _current, null);
+        _nextCheckUtc = DateTime.MinValue;
+    }
+
+    public void SetWallhavenQuery(string? query)
+    {
+        string[] queries = (query ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        _wallhavenQueries = queries.Length > 0 ? queries : DefaultWallhavenQueries;
         Interlocked.Increment(ref _generation);
         Replace(ref _current, null);
         _nextCheckUtc = DateTime.MinValue;
@@ -335,7 +345,7 @@ internal sealed class WallpaperService : IDisposable
     {
         HashSet<string> recent = Directory.EnumerateFiles(_wallhavenDirectory, "*.jpg")
             .Select(Path.GetFileNameWithoutExtension).OfType<string>().ToHashSet();
-        string query = WallhavenQueries[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerHour % WallhavenQueries.Length)];
+        string query = _wallhavenQueries[(int)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerHour % _wallhavenQueries.Length)];
         List<WallhavenImage> candidates = await SearchWallhavenAsync(query, _random.Next(1, 4));
         candidates = candidates.Where(c => !recent.Contains(c.Id)).ToList();
         // Darker pictures keep the white figures on the screens readable.
@@ -364,7 +374,7 @@ internal sealed class WallpaperService : IDisposable
     private async Task<List<WallhavenImage>> SearchWallhavenAsync(string query, int page)
     {
         string url = "https://wallhaven.cc/api/v1/search?q=" + Uri.EscapeDataString(query) +
-            "&categories=100&purity=100&sorting=toplist&topRange=1y&atleast=1920x1080&ratios=16x9,16x10,21x9&page=" +
+            "&categories=100&purity=100&sorting=toplist&topRange=1y&page=" +
             page.ToString(CultureInfo.InvariantCulture);
         using JsonDocument document = JsonDocument.Parse(await _http.GetStringAsync(url));
         List<WallhavenImage> results = new();
@@ -372,8 +382,10 @@ internal sealed class WallpaperService : IDisposable
         {
             string? id = item.GetProperty("id").GetString();
             string? path = item.GetProperty("path").GetString();
+            int width = item.TryGetProperty("dimension_x", out JsonElement widthElement) ? widthElement.GetInt32() : 0;
+            int height = item.TryGetProperty("dimension_y", out JsonElement heightElement) ? heightElement.GetInt32() : 0;
             long size = item.TryGetProperty("file_size", out JsonElement s) ? s.GetInt64() : 0;
-            if (id == null || path == null || size > 12_000_000) continue;
+            if (id == null || path == null || width < 3840 || height < 2160 || size > 30_000_000) continue;
             double[] colours = item.TryGetProperty("colors", out JsonElement c)
                 ? c.EnumerateArray().Select(e => Luminance(e.GetString())).Take(3).ToArray()
                 : Array.Empty<double>();

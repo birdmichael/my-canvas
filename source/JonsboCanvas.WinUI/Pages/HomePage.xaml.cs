@@ -87,9 +87,9 @@ public sealed partial class HomePage : Page, ILivePage, IPreviewSink
         ScreenState longState = _engine.LongState, squareState = _engine.SquareState;
         int online = (longState == ScreenState.Connected ? 1 : 0) + (squareState == ScreenState.Connected ? 1 : 0);
         ConnectionText.Text = _engine.CaptureMode ? L("State.Demo") : LF("Home.Online", online);
-        LongStateText.Text = StateText(longState, _engine.LongPortName) + " · " + LF("Home.Showing", ModeName(_engine.ShownLongMode));
+        LongStateText.Text = ScreenState(longState, _engine.LongPortName) + " · " + LF("Home.Showing", ModeName(_engine.ShownLongMode));
         LongDot.Fill = StateBrush(longState);
-        SquareStateText.Text = StateText(squareState) + " · " + LF("Home.Showing", ModeName(_engine.ShownSquareMode == "music" ? "music" : "clock"));
+        SquareStateText.Text = ScreenState(squareState) + " · " + LF("Home.Showing", ModeName(_engine.ShownSquareMode == "music" ? "music" : "clock"));
         SquareDot.Fill = StateBrush(squareState);
 
         bool requested = _engine.ConnectionRequested;
@@ -233,5 +233,3 @@ internal static class BrightnessSave
         _timer.Start();
     }
 }
-
-

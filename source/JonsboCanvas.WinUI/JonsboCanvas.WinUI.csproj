@@ -106,6 +106,8 @@
     <Compile Include="..\JonsboCanvas\NeteaseLauncher.cs" Link="Core\NeteaseLauncher.cs" />
     <Compile Include="..\JonsboCanvas\NeteaseCdpBridge.cs" Link="Core\NeteaseCdpBridge.cs" />
     <Compile Include="..\JonsboCanvas\NeteaseMedia.cs" Link="Core\NeteaseMedia.cs" />
+    <Compile Include="..\JonsboCanvas\VibeCoding.cs" Link="Core\VibeCoding.cs" />
+    <Compile Include="..\JonsboCanvas\DashboardRenderer.cs" Link="Core\DashboardRenderer.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -142,11 +144,12 @@
   </Target>
 
   <!-- Publish Properties -->
-  <PropertyGroup>
-    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
-  </PropertyGroup>
+   <PropertyGroup>
+     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+     <!-- Trimming disables built-in COM (ILLink default), which kills the WASAPI loopback and
+          audio meter the music lighting depends on. Keep it off even outside publish.ps1. -->
+     <PublishTrimmed>False</PublishTrimmed>
+   </PropertyGroup>
 </Project>
 

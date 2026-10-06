@@ -16,6 +16,8 @@
     <Compile Include="../JonsboCanvas/NeteaseLauncher.cs" />
     <Compile Include="../JonsboCanvas/NeteaseCdpBridge.cs" />
     <Compile Include="../JonsboCanvas/NeteaseMedia.cs" />
+    <Compile Include="../JonsboCanvas/VibeCoding.cs" />
+    <Compile Include="../JonsboCanvas/DashboardRenderer.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/LegacyJsonSerializer.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/Log.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/LogRotationPolicy.cs" />

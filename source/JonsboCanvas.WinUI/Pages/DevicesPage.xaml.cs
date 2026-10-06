@@ -36,9 +36,9 @@ public sealed partial class DevicesPage : Page, ILivePage
         ScreenState longState = _engine.LongState, squareState = _engine.SquareState;
         int online = (longState == ScreenState.Connected ? 1 : 0) + (squareState == ScreenState.Connected ? 1 : 0);
         ConnectionTitle.Text = _engine.CaptureMode ? L("State.Demo") : LF("Home.Online", online);
-        LongState.Text = StateText(longState, _engine.LongPortName);
+        LongState.Text = ScreenState(longState, _engine.LongPortName);
         LongDot.Fill = StateBrush(longState);
-        SquareState.Text = StateText(squareState);
+        SquareState.Text = ScreenState(squareState);
         SquareDot.Fill = StateBrush(squareState);
         LongCard.Description = L("Devices.Long.Hint");
         SquareCard.Description = L("Devices.Square.Hint");

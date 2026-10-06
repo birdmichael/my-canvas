@@ -10,7 +10,7 @@ internal static class UiText
     public static string L(string key) => Localization.Get(key);
     public static string LF(string key, params object[] args) => Localization.Format(key, args);
 
-    public static string StateText(ScreenState state, string port = "") => state switch
+    public static string ScreenState(ScreenState state, string port = "") => state switch
     {
         JonsboCanvas_WinUI.ScreenState.Connected => string.IsNullOrEmpty(port) ? L("State.Connected") : LF("State.ConnectedOn", port),
         JonsboCanvas_WinUI.ScreenState.Searching => L("State.Searching"),
@@ -64,5 +64,3 @@ internal static class UiText
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 }
-
-

@@ -78,6 +78,17 @@
             <local:SettingsCard x:Name="FileCard" Glyph="&#xEB9F;" Header="{local:Str Key=Wallpaper.File}">
                 <Button Click="ChooseButton_Click" Content="{local:Str Key=Wallpaper.Choose}" />
             </local:SettingsCard>
+            <local:SettingsCard x:Name="QueryCard" Glyph="&#xE71C;" Header="精选风格" Description="选择一个风格，或编辑自己的风格。">
+                <StackPanel Spacing="8">
+                    <local:Segmented x:Name="StyleChoice" />
+                    <Button x:Name="CustomStyleButton" Click="CustomStyleButton_Click" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE70F;" />
+                            <TextBlock Text="自定义风格" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </local:SettingsCard>
 
             <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Wallpaper.SyncSection}" />
             <local:SettingsCard Description="{local:Str Key=Wallpaper.Desktop.Hint}" Glyph="&#xE7F8;" Header="{local:Str Key=Wallpaper.Desktop}">

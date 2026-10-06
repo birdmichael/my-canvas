@@ -1,4 +1,4 @@
-﻿namespace JonsboCanvas_WinUI;
+namespace JonsboCanvas_WinUI;
 
 // Pages read their text once when they are built; switching language rebuilds the open page.
 public static class Localization

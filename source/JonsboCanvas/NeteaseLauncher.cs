@@ -16,7 +16,14 @@ namespace JonsboCanvas
         public static string StartRealtime(int debugPort)
         {
             if (IsRunning())
-                return "网易云已运行；精确同步不可用时，请退出网易云后重新选择音乐模式";
+            {
+                // An instance started normally does not expose the CDP port. Reuse an
+                // instance that already has the port, otherwise restart it here so the
+                // user does not have to quit NetEase by hand first.
+                if (IsDebugPortOpen(debugPort))
+                    return "网易云已运行，正在连接实时同步";
+                return RestartRealtime(debugPort);
+            }
 
             string executable = FindExecutable();
             if (string.IsNullOrWhiteSpace(executable))
@@ -36,6 +43,20 @@ namespace JonsboCanvas
             {
                 Log.Write("Unable to launch Netease realtime: " + exception);
                 return "网易云启动失败：" + exception.Message;
+            }
+        }
+
+        private static bool IsDebugPortOpen(int debugPort)
+        {
+            try
+            {
+                using System.Net.Sockets.TcpClient client = new();
+                System.Threading.Tasks.Task task = client.ConnectAsync("127.0.0.1", debugPort);
+                return task.Wait(250);
+            }
+            catch
+            {
+                return false;
             }
         }
 

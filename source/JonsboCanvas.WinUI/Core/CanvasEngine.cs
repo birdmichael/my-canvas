@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using JonsboCanvas;
@@ -80,6 +80,7 @@ internal sealed class CanvasEngine : IDisposable
         _renderer = new DualLayoutRenderer(Config);
         _weather = new WeatherService(Config.WeatherLocation);
         _wallpaper = new WallpaperService(EmbeddedRuntime.DataDirectory);
+        _wallpaper.SetWallhavenQuery(Config.WallpaperQuery);
         _wallpaper.SetSource(Config.WallpaperSource);
         if (Config.WallpaperSource == "custom")
             _wallpaper.UseCustom(Config.WallpaperPath);
@@ -205,7 +206,7 @@ internal sealed class CanvasEngine : IDisposable
     {
         DateTime now = DateTime.UtcNow;
         string mode = Config.DisplayMode, squareMode = Config.SquareDisplayMode;
-        bool needsMusic = mode is "music" or "auto" || squareMode is "music" or "auto";
+        bool needsMusic = Config.LightingEnabled || mode is "music" or "auto" || squareMode is "music" or "auto";
         if (!CaptureMode && needsMusic &&
             (_music == null || (now - _musicAt).TotalMilliseconds >= (_music.Realtime ? 20 : 500)))
         {
@@ -217,11 +218,9 @@ internal sealed class CanvasEngine : IDisposable
         string longShown = Resolve(mode), squareShown = Resolve(squareMode);
         _resolvedLong = longShown;
         _resolvedSquare = squareShown;
-        bool musicShown = longShown == "music" || squareShown == "music";
-
         RefreshMusicLightingColor();
-        UpdateBeatLoop(musicShown);
-        ApplyLighting(musicShown);
+        UpdateBeatLoop(MusicPlaying);
+        ApplyLighting(MusicPlaying);
         if ((longShown == "hardware" || squareShown == "hardware") &&
             (_metrics == null || (now - _metricsAt).TotalMilliseconds >= Config.RefreshMilliseconds))
         {
@@ -287,13 +286,18 @@ internal sealed class CanvasEngine : IDisposable
     // Guards the hand-over between the beat loop and static lighting.
     private readonly object _beatSync = new();
 
-    private bool MusicVisible => _resolvedLong == "music" || _resolvedSquare == "music";
+    private bool MusicPlaying => _music?.Available == true && _music.Playing;
 
     private void ApplyLighting(bool musicActive)
     {
         var (color, level) = LightColorFor(musicActive);
         Volatile.Write(ref _lightArgb, color.ToArgb());
-        if (!Config.LightingEnabled || _beatCts != null) return;
+        if (!Config.LightingEnabled)
+        {
+            LightingController.SetColor(0, 0, 0, 0);
+            return;
+        }
+        if (_beatCts != null) return;
         byte brightness = (byte)Math.Clamp(Math.Round(Volatile.Read(ref _brightness) * 255 / 100.0 * level), 0, 255);
         LightingController.SetColor(color.R, color.G, color.B, brightness);
     }
@@ -332,7 +336,7 @@ internal sealed class CanvasEngine : IDisposable
         if (Config.LightingCoverColor && _music?.Cover != null)
         {
             string id = _music.SongId ?? "";
-            if (id != _coverColorSongId)
+            if (id != _coverColorSongId || _coverColor.IsEmpty)
             {
                 _coverColorSongId = id;
                 _coverPalette = DominantColor.FromBitmapMulti(_music.Cover, 3);
@@ -343,6 +347,7 @@ internal sealed class CanvasEngine : IDisposable
         }
         else
         {
+            _coverColors = Array.Empty<DrawingColor>();
             _musicLightingColor = manual;
         }
     }
@@ -377,6 +382,7 @@ internal sealed class CanvasEngine : IDisposable
         double previous = 0;
         int colorIndex = 0;
         double lastColorSwitch = 0;
+        double lastAudioLog = 0;
         // Palette colours change on a beat at most this often, and drift on
         // by themselves after the longer interval; each change crossfades.
         const double minColorSeconds = 1.4;
@@ -391,6 +397,11 @@ internal sealed class CanvasEngine : IDisposable
             double now = clock.Elapsed.TotalSeconds;
             double dt = now - previous;
             var frame = envelope.Sample(bass, full, Volatile.Read(ref _brightness), dt);
+            if (now - lastAudioLog >= 3)
+            {
+                lastAudioLog = now;
+                LightingController.LogInfo($"audio bass={bass:0.0000} full={full:0.0000} out={frame.Brightness} beat={(frame.Beat ? 1 : 0)}");
+            }
             DrawingColor[] palette = _coverColors;
             DrawingColor target = _musicLightingColor;
             if (palette.Length > 1)
@@ -424,7 +435,7 @@ internal sealed class CanvasEngine : IDisposable
     {
         Config.LightingBrightness = value;
         Volatile.Write(ref _brightness, value);
-        Run(() => ApplyLighting(MusicVisible));
+        Run(() => ApplyLighting(MusicPlaying));
     }
 
     // Applies lighting settings already written to Config.
@@ -435,7 +446,7 @@ internal sealed class CanvasEngine : IDisposable
         {
             if (coverChanged) _coverColorSongId = "";
             if (beatChanged && !Config.LightingBeatSync) LightingController.Reset();
-            ApplyLighting(MusicVisible);
+            ApplyLighting(MusicPlaying);
         });
         Invalidate();
     }
@@ -551,6 +562,15 @@ internal sealed class CanvasEngine : IDisposable
     }
 
     public bool NextWallpaper() => _wallpaper.Next();
+
+    public void SetWallpaperQuery(string query)
+    {
+        Config.WallpaperQuery = string.IsNullOrWhiteSpace(query) ? "landscape,mountains,space,forest,lake,night sky" : query.Trim();
+        _wallpaper.SetWallhavenQuery(Config.WallpaperQuery);
+        SaveConfig();
+        if (Config.WallpaperSource == "wallhaven") _wallpaper.Next();
+        Invalidate();
+    }
 
     // "bing", "wallhaven" or "custom" with a picture; false when the picture could not be read.
     public async Task<bool> SetWallpaperSourceAsync(string source, string path)

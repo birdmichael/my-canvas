@@ -60,7 +60,8 @@ internal static class SystemAudioAnalyzer
         FastLoopbackCapture? capture = null;
         try
         {
-            capture = new FastLoopbackCapture();
+            var device = new MMDeviceEnumerator().GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            capture = new FastLoopbackCapture(device);
             WaveFormat format = capture.WaveFormat;
             bool isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat || format is WaveFormatExtensible extensible
                 && extensible.SubFormat == FloatSubFormat;
@@ -71,7 +72,7 @@ internal static class SystemAudioAnalyzer
             capture.RecordingStopped += OnStopped;
             capture.StartRecording();
             _capture = capture;
-            LightingController.LogInfo($"loopback capture started {format.SampleRate} Hz x{format.Channels}");
+            LightingController.LogInfo($"loopback capture started on '{device.FriendlyName}' {format.SampleRate} Hz x{format.Channels}");
         }
         catch (Exception ex)
         {
@@ -145,8 +146,8 @@ internal static class SystemAudioAnalyzer
     // buffer delivers a packet every 10 ms.
     private sealed class FastLoopbackCapture : WasapiCapture
     {
-        public FastLoopbackCapture()
-            : base(new MMDeviceEnumerator().GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia), false, 20) { }
+        public FastLoopbackCapture(MMDevice device)
+            : base(device, false, 20) { }
 
         protected override AudioClientStreamFlags GetAudioClientStreamFlags() => AudioClientStreamFlags.Loopback;
     }

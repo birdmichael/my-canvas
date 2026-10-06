@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Application
     x:Class="JonsboCanvas_WinUI.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -11,7 +11,36 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
-
+            <!-- Replaces the Windows accent in the standard controls so the whole app uses one highlight colour. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#7FD3E6" />
+                    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#E67FD3E6" />
+                    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#CC7FD3E6" />
+                    <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="#7FD3E6" />
+                    <SolidColorBrush x:Key="AccentTextFillColorSecondaryBrush" Color="#7FD3E6" />
+                    <SolidColorBrush x:Key="AccentTextFillColorTertiaryBrush" Color="#CC7FD3E6" />
+                    <!-- The control brushes are resolved inside XamlControlsResources, so they are pointed here one by one. -->
+                    <StaticResource x:Key="ToggleSwitchFillOn" ResourceKey="AccentFillColorDefaultBrush" />
+                    <StaticResource x:Key="ToggleSwitchFillOnPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                    <StaticResource x:Key="ToggleSwitchFillOnPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                    <StaticResource x:Key="ToggleSwitchStrokeOn" ResourceKey="AccentFillColorDefaultBrush" />
+                    <StaticResource x:Key="ToggleSwitchStrokeOnPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                    <StaticResource x:Key="ToggleSwitchStrokeOnPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                    <StaticResource x:Key="SliderTrackValueFill" ResourceKey="AccentFillColorDefaultBrush" />
+                    <StaticResource x:Key="SliderTrackValueFillPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                    <StaticResource x:Key="SliderTrackValueFillPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                    <StaticResource x:Key="SliderInnerThumbBackground" ResourceKey="AccentFillColorDefaultBrush" />
+                    <StaticResource x:Key="SliderInnerThumbBackgroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                    <StaticResource x:Key="SliderInnerThumbBackgroundPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                    <StaticResource x:Key="AccentButtonBackground" ResourceKey="AccentFillColorDefaultBrush" />
+                    <StaticResource x:Key="AccentButtonBackgroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush" />
+                    <StaticResource x:Key="AccentButtonBackgroundPressed" ResourceKey="AccentFillColorTertiaryBrush" />
+                    <StaticResource x:Key="NavigationViewSelectionIndicatorForeground" ResourceKey="AccentFillColorDefaultBrush" />
+                    <StaticResource x:Key="ProgressRingForegroundThemeBrush" ResourceKey="AccentFillColorDefaultBrush" />
+                    <StaticResource x:Key="HyperlinkButtonForeground" ResourceKey="AccentTextFillColorPrimaryBrush" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
 
             <!-- Follows the wallpaper's colour when the accent sync is on (see AppAccent). -->
             <SolidColorBrush x:Key="CanvasAccentBrush" Color="#7FD3E6" />

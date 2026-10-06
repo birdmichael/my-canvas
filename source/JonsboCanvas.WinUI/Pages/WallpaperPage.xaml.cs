@@ -17,6 +17,14 @@ public sealed partial class WallpaperPage : Page, ILivePage
     private readonly CanvasEngine _engine = App.Engine;
     private string? _shown;
     private bool _syncing = true;
+    private static readonly (string Tag, string Label, string Query)[] Styles =
+    {
+        ("scenery", "风景", "landscape,mountains,space,forest,lake,night sky"),
+        ("anime", "动漫", "anime,anime scenery,anime landscape"),
+        ("cyberpunk", "赛博朋克", "cyberpunk,neon city,futuristic city"),
+        ("abstract", "抽象", "abstract,geometric,minimalism"),
+        ("architecture", "建筑", "architecture,modern architecture,interior"),
+    };
 
     public WallpaperPage()
     {
@@ -26,6 +34,9 @@ public sealed partial class WallpaperPage : Page, ILivePage
         SourceChoice.SelectionChanged += Source_Changed;
         DesktopToggle.IsOn = _engine.Config.DesktopWallpaperSync;
         AccentToggle.IsOn = _engine.Config.AccentColorSync;
+        StyleChoice.SetOptions(Styles.Select(s => (s.Tag, s.Label)).Concat(new[] { ("custom", "自定义") }).ToArray());
+        StyleChoice.Selected = FindStyle(_engine.Config.WallpaperQuery);
+        StyleChoice.SelectionChanged += Style_Changed;
         _syncing = false;
         UpdateSourceParts();
         Loaded += (_, _) => Refresh();
@@ -73,6 +84,7 @@ public sealed partial class WallpaperPage : Page, ILivePage
     {
         bool custom = _engine.Config.WallpaperSource == "custom";
         FileCard.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
+        QueryCard.Visibility = _engine.Config.WallpaperSource == "wallhaven" ? Visibility.Visible : Visibility.Collapsed;
         FileCard.Description = string.IsNullOrEmpty(_engine.Config.WallpaperPath)
             ? L("Wallpaper.None")
             : _engine.Config.WallpaperPath;
@@ -109,6 +121,36 @@ public sealed partial class WallpaperPage : Page, ILivePage
     }
 
     private async void ChooseButton_Click(object sender, RoutedEventArgs e) => await ChooseAsync();
+
+    private string FindStyle(string query)
+    {
+        string normalized = query.Trim();
+        return Styles.FirstOrDefault(s => string.Equals(s.Query, normalized, StringComparison.OrdinalIgnoreCase)).Tag ?? "custom";
+    }
+
+    private void Style_Changed(string tag)
+    {
+        if (_syncing) return;
+        if (tag == "custom") return;
+        _engine.SetWallpaperQuery(Styles.First(s => s.Tag == tag).Query);
+    }
+
+    private async void CustomStyleButton_Click(object sender, RoutedEventArgs e)
+    {
+        TextBox input = new() { Text = _engine.Config.WallpaperQuery, PlaceholderText = "例如：anime, cyberpunk, city night", MinWidth = 420 };
+        ContentDialog dialog = new()
+        {
+            Title = "自定义精选风格",
+            Content = new StackPanel { Spacing = 8, Children = { new TextBlock { Text = "输入关键词，多个关键词用逗号分隔。" }, input } },
+            PrimaryButtonText = "应用",
+            CloseButtonText = "取消",
+            XamlRoot = XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (string.IsNullOrWhiteSpace(input.Text)) return;
+        _engine.SetWallpaperQuery(input.Text);
+        StyleChoice.Selected = "custom";
+    }
 
     private async Task<bool> ChooseAsync()
     {

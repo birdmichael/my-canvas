@@ -51,6 +51,7 @@ namespace JonsboCanvas
         // Hardware-mode photo: "bing" (image of the day), "wallhaven" (hourly scenery) or "custom" (WallpaperPath).
         public string WallpaperSource { get; set; }
         public string WallpaperPath { get; set; }
+        public string WallpaperQuery { get; set; }
         // Also use the photo as the Windows desktop background; the user's own one is restored when turned off.
         public bool DesktopWallpaperSync { get; set; }
         public string DesktopWallpaperOriginal { get; set; }
@@ -103,6 +104,7 @@ namespace JonsboCanvas
             WeatherLocation = "";
             WallpaperSource = "bing";
             WallpaperPath = "";
+            WallpaperQuery = "landscape,mountains,space,forest,lake,night sky";
             DesktopWallpaperSync = true;
             DesktopWallpaperOriginal = "";
             AccentColorSync = true;
@@ -165,6 +167,7 @@ namespace JonsboCanvas
                 loaded.SerialPortName = loaded.SerialPortName ?? "";
                 loaded.WeatherLocation = loaded.WeatherLocation ?? "";
                 loaded.WallpaperPath = loaded.WallpaperPath ?? "";
+                loaded.WallpaperQuery = OrDefault(loaded.WallpaperQuery, defaults.WallpaperQuery);
                 loaded.DesktopWallpaperOriginal = loaded.DesktopWallpaperOriginal ?? "";
                 loaded.AccentColorOriginal = loaded.AccentColorOriginal ?? "";
                 if (loaded.WallpaperSource != "custom" && loaded.WallpaperSource != "wallhaven")
