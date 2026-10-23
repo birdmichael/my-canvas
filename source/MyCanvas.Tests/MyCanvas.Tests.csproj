@@ -41,6 +41,7 @@
     <Compile Include="../JonsboCanvas.WinUI/Core/WeatherService.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/ScreenModePolicy.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/DualDisplayController.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/DisplayResumePolicy.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/FrameSendPolicy.cs" />
     <Compile Include="../JonsboCanvas/NativeDisplay.cs" />
     <Compile Include="../JonsboCanvas/FrameRotation.cs" />

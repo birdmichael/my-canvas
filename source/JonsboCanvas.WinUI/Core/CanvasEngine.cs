@@ -40,6 +40,7 @@ internal sealed class CanvasEngine : IDisposable
     private DateTime _metricsAt = DateTime.MinValue;
     private DateTime _musicAt = DateTime.MinValue;
     private DateTime _lastFrameAt = DateTime.MinValue;
+    private DateTime _resumeRecoveryStartedAt = DateTime.MinValue;
     private int _forceFrame;
     private volatile bool _disposed;
     private volatile bool _connectionRequested;
@@ -178,7 +179,9 @@ internal sealed class CanvasEngine : IDisposable
             }
 
             DateTime now = DateTime.UtcNow;
-            if (DisplayResumePolicy.ShouldRestartDisplay(lastLoop, now, _connectionRequested))
+            bool screensConnected = _display.Connected;
+            if (DisplayResumePolicy.ShouldRestartDisplay(
+                    lastLoop, now, _connectionRequested, _resumeRecoveryStartedAt, screensConnected))
                 _ = RecoverAfterResumeAsync();
             lastLoop = now;
 
@@ -825,6 +828,7 @@ internal sealed class CanvasEngine : IDisposable
     {
         if (CaptureMode || _resumeBusy || !_connectionRequested || _disposed) return;
         _resumeBusy = true;
+        _resumeRecoveryStartedAt = DateTime.UtcNow;
         Log.Write("System resume gap detected; restarting the screens.");
         try
         {

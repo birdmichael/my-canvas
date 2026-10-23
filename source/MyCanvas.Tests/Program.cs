@@ -57,6 +57,13 @@ Check(Near(KeyboardRetryBackoffPolicy.NextDelay(0), 15) &&
       Near(KeyboardRetryBackoffPolicy.NextDelay(1), 15) &&
       Near(KeyboardRetryBackoffPolicy.NextDelay(20), 300),
     "disconnected keyboard retries back off to one probe every five minutes");
+var resumeNow = new DateTime(2026, 10, 23, 12, 0, 0, DateTimeKind.Utc);
+Check(!DisplayResumePolicy.ShouldRestartDisplay(resumeNow, resumeNow.AddSeconds(2), true, default, false) &&
+      DisplayResumePolicy.ShouldRestartDisplay(resumeNow, resumeNow.AddSeconds(6), true, default, false) &&
+      !DisplayResumePolicy.ShouldRestartDisplay(resumeNow, resumeNow.AddSeconds(6), true, resumeNow, false) &&
+      DisplayResumePolicy.ShouldRestartDisplay(resumeNow, resumeNow.AddSeconds(20), true, resumeNow, false) &&
+      !DisplayResumePolicy.ShouldRestartDisplay(resumeNow, resumeNow.AddSeconds(20), true, default, true),
+    "display resume recovery restarts only while screens remain disconnected and respects its cooldown");
 var caseRed = new CaseLight(255, 0, 0);
 var caseBlue = new CaseLight(0, 0, 255);
 Check(CaseLightDedupPolicy.ShouldApply(caseRed, null, null) &&
