@@ -39,6 +39,8 @@ public sealed partial class LightingPage : Page, ILivePage
         BeatToggle.IsOn = config.LightingBeatSync;
         BrightnessSlider.Value = config.LightingBrightness;
         BrightnessText.Text = config.LightingBrightness + "%";
+        KeyboardBrightnessSlider.Value = config.KeyboardLightingBrightness;
+        KeyboardBrightnessText.Text = config.KeyboardLightingBrightness + "%";
         _syncing = false;
         UpdateParts();
         Loaded += (_, _) => Refresh();
@@ -48,11 +50,27 @@ public sealed partial class LightingPage : Page, ILivePage
     {
         System.Drawing.Color light = _engine.LightColor;
         bool on = _engine.Config.LightingEnabled;
+        BrightnessSlider.IsEnabled = on;
+        KeyboardBrightnessSlider.IsEnabled = on;
         CurrentSwatch.Background = new SolidColorBrush(on && !light.IsEmpty
             ? Windows.UI.Color.FromArgb(255, light.R, light.G, light.B)
             : Windows.UI.Color.FromArgb(255, 0x2B, 0x2B, 0x2B));
         CurrentText.Text = on ? LF("Lighting.Current", $"#{light.R:X2}{light.G:X2}{light.B:X2}") : L("Lighting.Enable.Hint");
+        var devices = _engine.Devices;
+        CanvasDeviceSnapshot? motherboard = devices.FirstOrDefault(d => d.Kind == CanvasDeviceKind.MotherboardLighting);
+        CanvasDeviceSnapshot? keyboard = devices.FirstOrDefault(d => d.Kind == CanvasDeviceKind.Keyboard);
+        CaseDeviceState.Text = DeviceState(motherboard);
+        KeyboardDeviceState.Text = DeviceState(keyboard);
+        UnifiedState.Text = !on ? L("Common.Off")
+            : motherboard?.State == ScreenState.Connected && keyboard?.State == ScreenState.Connected
+            ? L("Lighting.Unified") : L("State.WaitingForDevice");
     }
+
+    private static string DeviceState(CanvasDeviceSnapshot? device) => device == null
+        ? L("State.Off")
+        : device.State == ScreenState.Connected ? L("State.Connected")
+        : device.State == ScreenState.Searching ? L("State.Searching")
+        : string.IsNullOrEmpty(device.LastError) ? L("State.Off") : LF("State.Error", device.LastError);
 
     private void UpdateParts()
     {
@@ -167,6 +185,15 @@ public sealed partial class LightingPage : Page, ILivePage
         int value = (int)Math.Round(e.NewValue);
         BrightnessText.Text = value + "%";
         _engine.SetBrightness(value);
+        BrightnessSave.Schedule(_engine);
+    }
+
+    private void KeyboardBrightnessSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_syncing) return;
+        int value = (int)Math.Round(e.NewValue);
+        KeyboardBrightnessText.Text = value + "%";
+        _engine.SetKeyboardBrightness(value);
         BrightnessSave.Schedule(_engine);
     }
 }

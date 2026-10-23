@@ -4,6 +4,39 @@
 项目：MyCanvas  
 范围：仅记录本对话中实际讨论并由助手修改的代码，不包含工作区中其他未相关的差异。
 
+## 0.1 ROG Azoth 键盘小屏壁纸导出（2026-10-21 追加）
+
+文件：`source/JonsboCanvas.WinUI/Core/KeyboardDisplay.cs`
+文件：`source/JonsboCanvas.WinUI/Pages/WallpaperPage.xaml`
+文件：`source/JonsboCanvas.WinUI/Pages/WallpaperPage.xaml.cs`
+文件：`source/JonsboCanvas.WinUI/Core/Localization.cs`
+文件：`source/MyCanvas.Tests/MyCanvas.Tests.csproj`
+文件：`source/MyCanvas.Tests/Program.cs`
+
+检测到的键盘为 `ROG AZOTH 96 HE / LITE`（Armoury Crate 名称 `ROG 夜魔 98 HE / LITE`，接收器 `VID_0B05&PID_1AD0`）。它的OLED不是 Windows 显示器，而是由 Armoury Crate/KeyboardSDK 控制的键盘固件屏幕。Wallpaper 页面新增「ROG 键盘小屏 → 导出 184×97」，把当前 MyCanvas 壁纸缩放成键盘屏专用 PNG，保存到数据目录的 `keyboard` 文件夹并打开资源管理器定位。
+
+已验证：Render 输出尺寸为 `184×97`，MyCanvas 测试 `64 checks passed`，WinUI Release 构建 `0 errors`。预览版已发布到 `outputs\MyCanvas-keyboard-preview` 并正常启动，使用 Bing 壁纸生成并检查了实际 PNG 内容。
+
+限制：ASUS 未提供公开的第三方写屏头文件。`ArmouryKbSDK.dll` 为32位且依赖 Armoury Crate 运行时；独立进程调用其 `ExecuteFunction` 在实现内部崩溃，因此没有把不可靠的直写路径加入 MyCanvas，也不会把未验证的公开HID命令发到真实键盘。正式版本尚未覆盖部署，因为已在运行的正式 MyCanvas 需要管理员权限才能结束。
+
+## 0. 方屏时钟页显示城市名（2026-10-11 追加）
+
+文件：`source/JonsboCanvas.WinUI/Core/WeatherService.cs`
+文件：`source/JonsboCanvas.WinUI/Core/DualLayoutRenderer.Hardware.cs`
+文件：`source/JonsboCanvas.WinUI/Core/CanvasEngine.cs`
+文件：`source/JonsboCanvas/AppConfig.cs`
+
+小屏（方屏）硬件模式时钟页在天气状况行右侧新增「定位图钉 + 城市名」，与右下角湿度「水滴 + 数值」排版呼应；天气状况文字在城市名存在时自动缩短避免重叠。
+
+城市名来源：
+
+- 默认优先使用 Windows 系统定位（Wi-Fi/GPS，不受代理影响）；未授权或获取失败时回退到公网 IP 定位，ip-api 请求增加 `city` 字段，随定位一并返回。
+- 配置的 `WeatherLocation` 为 `lat,lon` 时：走 BigDataCloud 免 key 逆地理编码取城市名（city → locality → principalSubdivision）。
+- `WeatherLocation` 现在也支持直接填地名：通过 Open-Meteo 地理编码解析成坐标，并把匹配名作为城市名。
+
+逆地理编码失败只影响城市标签，不影响天气刷新。`WeatherSnapshot` 增加 `City` 字段。捕获模式新增 `CaptureWeather()` 桩数据（与 `CaptureMusic()` 同模式），让截图显示真实感天气与城市。
+
+
 ## 1. 灯光跟随音乐播放状态
 
 文件：`source/JonsboCanvas.WinUI/Core/CanvasEngine.cs`
@@ -145,4 +178,19 @@ string url = "https://wallhaven.cc/api/v1/search?q=" + Uri.EscapeDataString(quer
 ```powershell
 C:\Code\MyCanvas\source\publish.ps1
 ```
+
+## 6. 键盘休眠与主机静态灯去重（2026-10-23）
+
+文件：`source/JonsboCanvas.WinUI/Core/KeyboardHidController.cs`
+文件：`source/JonsboCanvas.WinUI/Core/KeyboardLightDedupPolicy.cs`
+文件：`source/JonsboCanvas.WinUI/Core/KeyboardRetryBackoffPolicy.cs`
+文件：`source/JonsboCanvas.WinUI/Core/LightingController.cs`
+文件：`source/JonsboCanvas.WinUI/Core/CaseLightDedupPolicy.cs`
+文件：`source/JonsboCanvas.WinUI/Core/CanvasEngine.cs`
+
+硬件静态灯不再按固定时间重复写入。键盘灯和主机机箱灯都只在颜色/亮度变化时写一次；OLED 上传后仍恢复当前灯效，接收器重连后允许重新下发。音乐律动通过独立的 `Pulse` 路径保持实时刷新，不受到静态灯去重影响。
+
+无线键盘断开时，灯效和壁纸重试使用指数退避，依次从 15 秒延长到最长 5 分钟，避免持续 HID 活动阻止键盘进入省电状态。主机两个屏幕的渲染和推送节奏未改动，继续按 `RefreshMilliseconds` 更新时间、天气和设备信息。
+
+验证：`MyCanvas.Tests` 86 项通过，WinUI Release 构建 0 错误；部署后确认两个主机屏幕的发送计数继续增长，键盘灯进入休眠后再次操作可恢复屏幕和灯效。
 

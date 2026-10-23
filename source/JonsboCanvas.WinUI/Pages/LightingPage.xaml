@@ -32,7 +32,7 @@
                 </Grid>
             </Border>
 
-            <local:SettingsCard Glyph="&#xE706;" Header="{local:Str Key=Lighting.Brightness}">
+            <local:SettingsCard Glyph="&#xE706;" Header="{local:Str Key=Lighting.CaseBrightness}">
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <Slider
                         x:Name="BrightnessSlider"
@@ -42,6 +42,18 @@
                         Minimum="0"
                         ValueChanged="BrightnessSlider_ValueChanged" />
                     <TextBlock x:Name="BrightnessText" Width="40" VerticalAlignment="Center" TextAlignment="Right" />
+                </StackPanel>
+            </local:SettingsCard>
+            <local:SettingsCard Description="{local:Str Key=Lighting.KeyboardBrightness.Hint}" Glyph="&#xE950;" Header="{local:Str Key=Lighting.KeyboardBrightness}">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Slider
+                        x:Name="KeyboardBrightnessSlider"
+                        Width="240"
+                        VerticalAlignment="Center"
+                        Maximum="100"
+                        Minimum="0"
+                        ValueChanged="KeyboardBrightnessSlider_ValueChanged" />
+                    <TextBlock x:Name="KeyboardBrightnessText" Width="40" VerticalAlignment="Center" TextAlignment="Right" />
                 </StackPanel>
             </local:SettingsCard>
 
@@ -60,6 +72,16 @@
             <Border x:Name="MusicColors" Style="{StaticResource CardStyle}">
                 <StackPanel x:Name="MusicSwatches" Orientation="Horizontal" Spacing="10" />
             </Border>
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Lighting.Devices}" />
+            <local:SettingsCard Glyph="&#xE950;" Header="{local:Str Key=Lighting.Case}">
+                <TextBlock x:Name="CaseDeviceState" Style="{StaticResource CaptionStyle}" />
+            </local:SettingsCard>
+            <local:SettingsCard Glyph="&#xE950;" Header="{local:Str Key=Lighting.Keyboard}">
+                <TextBlock x:Name="KeyboardDeviceState" Style="{StaticResource CaptionStyle}" />
+            </local:SettingsCard>
+            <local:SettingsCard Description="{local:Str Key=Lighting.Unified.Hint}" Glyph="&#xE72A;" Header="{local:Str Key=Lighting.Unified}">
+                <TextBlock x:Name="UnifiedState" Style="{StaticResource CaptionStyle}" />
+            </local:SettingsCard>
             <local:SettingsCard Description="{local:Str Key=Lighting.Beat.Hint}" Glyph="&#xE995;" Header="{local:Str Key=Lighting.Beat}">
                 <ToggleSwitch x:Name="BeatToggle" Toggled="BeatToggle_Toggled" />
             </local:SettingsCard>

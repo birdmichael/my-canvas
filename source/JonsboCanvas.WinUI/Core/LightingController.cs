@@ -12,10 +12,12 @@ internal static class LightingController
 {
     private static readonly object Sync = new();
     private static readonly object QueueSync = new();
-    private static string _lastKey = "";
+    private static CaseLight? _applied;
     private static bool _resolverHooked;
     private static (byte r, byte g, byte b, byte bri)? _pending;
     private static bool _workerRunning;
+    private static int _state;
+    public static ScreenState State => (ScreenState)Volatile.Read(ref _state);
 
     // Static theme color. Deduped and collapsed to the latest value so dragging
     // sliders does not queue a long backlog of HID writes.
@@ -27,17 +29,19 @@ internal static class LightingController
         // RGB (and pinning the brightness register at 255) keeps every change on
         // the instant path with identical effective output.
         byte sr = Scale(r, brightness), sg = Scale(g, brightness), sb = Scale(b, brightness);
+        var next = new CaseLight(sr, sg, sb);
         lock (QueueSync)
         {
-            string key = sr + "," + sg + "," + sb;
-            if (key == _lastKey) return;
-            _lastKey = key;
+            if (!CaseLightDedupPolicy.ShouldApply(next, _applied, PendingLight())) return;
             _pending = (sr, sg, sb, 255);
             if (_workerRunning) return;
             _workerRunning = true;
             Task.Run(DrainQueue);
         }
     }
+
+    private static CaseLight? PendingLight() =>
+        _pending is { } pending ? new CaseLight(pending.r, pending.g, pending.b) : null;
 
     private static byte Scale(byte value, byte level) => (byte)Math.Clamp(
         (int)Math.Round(value * (level / 255.0)), 0, 255);
@@ -69,6 +73,10 @@ internal static class LightingController
                     lock (QueueSync) _pending ??= p;
                     Thread.Sleep(250);
                 }
+                else
+                {
+                    lock (QueueSync) _applied = new CaseLight(p.r, p.g, p.b);
+                }
                 idle.Restart();
             }
             else if (stop)
@@ -84,12 +92,19 @@ internal static class LightingController
     // the HID bus is not saturated; called from the beat thread directly.
     public static void Pulse(byte r, byte g, byte b, byte brightness)
     {
-        SetColor(r, g, b, brightness);
+        byte sr = Scale(r, brightness), sg = Scale(g, brightness), sb = Scale(b, brightness);
+        lock (QueueSync)
+        {
+            _pending = (sr, sg, sb, 255);
+            if (_workerRunning) return;
+            _workerRunning = true;
+            Task.Run(DrainQueue);
+        }
     }
 
     // Clear the dedup state so the next SetColor always writes (used when the
     // beat loop hands control back to the static theme).
-    public static void Reset() { lock (QueueSync) { _lastKey = ""; _pending = null; } }
+    public static void Reset() { lock (QueueSync) { _applied = null; _pending = null; } }
 
     public static void LogPeak(float peak)
     {
@@ -99,9 +114,12 @@ internal static class LightingController
     public static void LogInfo(string message) => DebugLog(message);
 
     private static bool _connected;
+    private static volatile string _lastError = "";
     private static int _statWrites, _statConnects, _statFailures;
     private static double _statTotalMs, _statMaxMs;
     private static readonly Stopwatch StatClock = Stopwatch.StartNew();
+
+    public static string LastError => _lastError;
 
     private static bool WriteAll(byte r, byte g, byte b, byte brightness)
     {
@@ -114,6 +132,7 @@ internal static class LightingController
                 EnsureResolver();
                 if (!_connected)
                 {
+                    Volatile.Write(ref _state, (int)ScreenState.Searching);
                     var lengths = new ReportLengths[32];
                     if (Connect(0x048D, 0x5711, 0xFF89, 0xCC, lengths) != 1)
                         throw new IOException("connect failed");
@@ -145,8 +164,18 @@ internal static class LightingController
                 apply[0] = 0xCC; apply[1] = 0x28; apply[2] = 0xFF; apply[3] = 0x07;
                 WriteChecked(apply);
                 success = true;
+                lock (QueueSync) _applied = new CaseLight(r, g, b);
+                _lastError = "";
+                Volatile.Write(ref _state, (int)ScreenState.Connected);
             }
-            catch (Exception ex) { _statFailures++; DebugLog("error " + ex.Message); Release(); }
+            catch (Exception ex)
+            {
+                _statFailures++;
+                _lastError = ex.Message;
+                Volatile.Write(ref _state, (int)ScreenState.NotResponding);
+                DebugLog("error " + ex.Message);
+                Release();
+            }
             double ms = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             _statWrites++;
             _statTotalMs += ms;

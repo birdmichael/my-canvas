@@ -34,12 +34,29 @@ public sealed partial class DevicesPage : Page, ILivePage
     public void Refresh()
     {
         ScreenState longState = _engine.LongState, squareState = _engine.SquareState;
-        int online = (longState == ScreenState.Connected ? 1 : 0) + (squareState == ScreenState.Connected ? 1 : 0);
-        ConnectionTitle.Text = _engine.CaptureMode ? L("State.Demo") : LF("Home.Online", online);
+        ScreenState keyboardState = _engine.KeyboardState;
+        var devices = _engine.Devices;
+        int online = devices.Count(device => device.State == ScreenState.Connected);
+        ConnectionTitle.Text = _engine.CaptureMode ? L("State.Demo") : LF("Home.Online", online, devices.Count);
+        CapabilitiesText.Text = LF("Devices.Capabilities",
+            devices.Count(d => d.Capabilities.HasFlag(CanvasDeviceCapabilities.Display)),
+            devices.Count(d => d.Capabilities.HasFlag(CanvasDeviceCapabilities.Lighting)));
         LongState.Text = ScreenState(longState, _engine.LongPortName);
         LongDot.Fill = StateBrush(longState);
         SquareState.Text = ScreenState(squareState);
         SquareDot.Fill = StateBrush(squareState);
+        KeyboardDot.Fill = StateBrush(keyboardState);
+        KeyboardState.Text = ScreenState(keyboardState) + " · " + (_engine.KeyboardUploading ? L("State.Uploading") :
+            _engine.Config.KeyboardWallpaperSync ? ModeName(_engine.KeyboardContentName) : L("State.SyncOff"));
+        KeyboardCard.Description = _engine.KeyboardLastError.Length > 0 ? LF("State.Error", _engine.KeyboardLastError) : L("Devices.Keyboard.Hint");
+        CanvasDeviceSnapshot? motherboard = devices.FirstOrDefault(device => device.Kind == CanvasDeviceKind.MotherboardLighting);
+        MotherboardState.Text = motherboard == null ? L("State.Off") : ScreenState(motherboard.State);
+        MotherboardDot.Fill = StateBrush(motherboard?.State ?? ScreenState.Off);
+        MotherboardCard.Description = motherboard?.LastError.Length > 0 ? LF("State.Error", motherboard.LastError) : L("Devices.Motherboard.Hint");
+        var diagnostics = _engine.KeyboardDiagnostics;
+        KeyboardDiagnostics.Text = LF("Devices.Keyboard.Diagnostics", diagnostics.Sessions, diagnostics.Uploads,
+            diagnostics.LightWrites, diagnostics.Failures);
+        ReconnectKeyboardButton.IsEnabled = !_engine.CaptureMode && !_engine.KeyboardUploading;
         LongCard.Description = L("Devices.Long.Hint");
         SquareCard.Description = L("Devices.Square.Hint");
 
@@ -53,6 +70,12 @@ public sealed partial class DevicesPage : Page, ILivePage
 
         ProblemBar.IsOpen = longState == ScreenState.NotResponding;
         ProblemBar.Message = L("State.NotRespondingHint");
+    }
+
+    private void ReconnectKeyboardButton_Click(object sender, RoutedEventArgs e)
+    {
+        _engine.ReconnectKeyboard();
+        Refresh();
     }
 
     private async Task RefreshDriverAsync()

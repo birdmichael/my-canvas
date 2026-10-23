@@ -34,6 +34,7 @@ public sealed partial class WallpaperPage : Page, ILivePage
         SourceChoice.SelectionChanged += Source_Changed;
         DesktopToggle.IsOn = _engine.Config.DesktopWallpaperSync;
         AccentToggle.IsOn = _engine.Config.AccentColorSync;
+        KeyboardSyncToggle.IsOn = _engine.Config.KeyboardWallpaperSync;
         StyleChoice.SetOptions(Styles.Select(s => (s.Tag, s.Label)).Concat(new[] { ("custom", "自定义") }).ToArray());
         StyleChoice.Selected = FindStyle(_engine.Config.WallpaperQuery);
         StyleChoice.SelectionChanged += Style_Changed;
@@ -183,5 +184,36 @@ public sealed partial class WallpaperPage : Page, ILivePage
     private void AccentToggle_Toggled(object sender, RoutedEventArgs e)
     {
         if (!_syncing) _engine.SetAccentSync(AccentToggle.IsOn);
+    }
+
+    private void KeyboardSyncToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_syncing) return;
+        _engine.SetKeyboardWallpaperSync(KeyboardSyncToggle.IsOn);
+        if (KeyboardSyncToggle.IsOn) _ = ApplyKeyboardWallpaperAsync();
+    }
+
+    private async void KeyboardApplyButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ApplyKeyboardWallpaperAsync();
+    }
+
+    private async Task ApplyKeyboardWallpaperAsync()
+    {
+        if (!_engine.HasKeyboardImage)
+        {
+            App.Current.ShowNotice(L("Wallpaper.Keyboard.NeedImage"));
+            return;
+        }
+        KeyboardApplyButton.IsEnabled = false;
+        try
+        {
+            bool applied = await _engine.ApplyKeyboardWallpaperAsync(force: true);
+            App.Current.ShowNotice(L(applied ? "Wallpaper.Keyboard.Applied" : "Wallpaper.Keyboard.Failed"));
+        }
+        finally
+        {
+            KeyboardApplyButton.IsEnabled = true;
+        }
     }
 }

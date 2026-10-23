@@ -97,6 +97,14 @@
             <local:SettingsCard Description="{local:Str Key=Wallpaper.Accent.Hint}" Glyph="&#xE790;" Header="{local:Str Key=Wallpaper.Accent}">
                 <ToggleSwitch x:Name="AccentToggle" Toggled="AccentToggle_Toggled" />
             </local:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="{local:Str Key=Wallpaper.KeyboardSection}" />
+            <local:SettingsCard x:Name="KeyboardCard" Description="{local:Str Key=Wallpaper.Keyboard.Hint}" Glyph="&#xE950;" Header="{local:Str Key=Wallpaper.Keyboard}">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <ToggleSwitch x:Name="KeyboardSyncToggle" Toggled="KeyboardSyncToggle_Toggled" />
+                    <Button x:Name="KeyboardApplyButton" Click="KeyboardApplyButton_Click" Content="{local:Str Key=Wallpaper.Keyboard.Apply}" />
+                </StackPanel>
+            </local:SettingsCard>
         </StackPanel>
     </ScrollViewer>
 </Page>

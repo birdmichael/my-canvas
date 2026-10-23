@@ -346,7 +346,18 @@ internal sealed partial class DualLayoutRenderer
 
         using Font condition = new(SecondaryFamily, 28, FontStyle.Regular, GraphicsUnit.Pixel);
         string conditionText = weather == null ? "Loading weather" : WeatherService.Describe(weather.Code, english: true);
-        DrawShadowed(g, Ellipsize(g, conditionText, condition, 424), condition, text, shadow, 28, 420);
+        using Font cityFont = new(SecondaryFamily, 22, FontStyle.Regular, GraphicsUnit.Pixel);
+        string city = Ellipsize(g, weather?.City?.Trim() ?? "", cityFont, 190);
+        float cityTextWidth = city.Length == 0 ? 0 : Measure(g, city, cityFont);
+        float cityWidth = cityTextWidth == 0 ? 0 : cityTextWidth + 24;
+        DrawShadowed(g, Ellipsize(g, conditionText, condition, 424 - cityWidth - (cityWidth > 0 ? 8 : 0)),
+            condition, text, shadow, 28, 420);
+        if (cityWidth > 0)
+        {
+            float cityX = 452 - cityTextWidth;
+            DrawPin(g, cityX - 20, 401, Color.FromArgb(225, 142, 197, 255));
+            DrawShadowed(g, city, cityFont, Color.FromArgb(225, text), shadow, cityX, 420);
+        }
         using Font detail = new(SecondaryFamily, 22, FontStyle.Regular, GraphicsUnit.Pixel);
         string range = weather == null ? "H --°   L --°"
             : string.Create(CultureInfo.InvariantCulture, $"H {weather.High:0}°   L {weather.Low:0}°");
@@ -467,6 +478,20 @@ internal sealed partial class DualLayoutRenderer
         drop.AddBezier(x + 7, y + 16, x + 14, y + 9, x + 11, y + 5, x + 7, y - 2);
         using Brush brush = new SolidBrush(color);
         g.FillPath(brush, drop);
+    }
+
+    private static void DrawPin(Graphics g, float x, float y, Color color)
+    {
+        using GraphicsPath pin = new();
+        pin.AddEllipse(x, y, 14, 14);
+        pin.AddPolygon(new[]
+        {
+            new PointF(x + 3f, y + 10f),
+            new PointF(x + 11f, y + 10f),
+            new PointF(x + 7f, y + 18f),
+        });
+        using Brush brush = new SolidBrush(color);
+        g.FillPath(brush, pin);
     }
 
     // ---------- pixel helpers ----------

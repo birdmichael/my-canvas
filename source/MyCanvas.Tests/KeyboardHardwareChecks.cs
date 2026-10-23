@@ -1,0 +1,105 @@
+using System.Diagnostics;
+using System.Drawing;
+using JonsboCanvas_WinUI;
+
+// Opt-in hardware soak; never runs as part of the normal render tests.
+internal static class KeyboardHardwareChecks
+{
+    public static async Task CheckUploadLightingAsync(string imagePath)
+    {
+        using Bitmap image = new(imagePath);
+        byte[] payload = KeyboardDisplay.BuildPayload(image);
+        using KeyboardHidController keyboard = new();
+        // A non-green colour makes an unexpected green override unambiguous.
+        foreach (byte brightness in new byte[] { 64, 128, 0 })
+        {
+            keyboard.SetLightColor(180, 0, 150, brightness);
+            byte expected = (byte)Math.Clamp(Math.Round(brightness * 100 / 255.0), 0, 100);
+            byte[] before = Array.Empty<byte>();
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                await Task.Delay(100);
+                before = await keyboard.ReadStateAsync(0x25, 0x0E);
+                if (before[9] == 180 && before[10] == 0 && before[11] == 150 && before[5] == expected) break;
+            }
+            if (before.Length < 12 || before[9] != 180 || before[10] != 0 || before[11] != 150 || before[5] != expected)
+                throw new Exception("Pre-upload static lighting readback mismatch");
+            Stopwatch clock = Stopwatch.StartNew();
+            if (!await keyboard.ApplyWallpaperAsync(payload, $"lighting-check-{brightness}", force: true))
+                throw new Exception("OLED upload failed: " + keyboard.LastError);
+            byte[] after = await keyboard.ReadStateAsync(0x25, 0x0E);
+            Console.WriteLine($"POST_UPLOAD elapsedMs={clock.ElapsedMilliseconds} rgb={after[9]},{after[10]},{after[11]} brightness={after[5]} expected={expected}");
+            if (after[9] != 180 || after[10] != 0 || after[11] != 150 || after[5] != expected)
+                throw new Exception("Post-upload lighting colour/brightness mismatch");
+        }
+        if (keyboard.Diagnostics.Failures != 0) throw new Exception("Lighting restoration failures: " + keyboard.Diagnostics);
+        Console.WriteLine("UPLOAD_LIGHTING_PASS " + keyboard.Diagnostics);
+    }
+
+    public static async Task RunAsync(string imagePath, int seconds)
+    {
+        using Bitmap image = new(imagePath);
+        byte[] payload = KeyboardDisplay.BuildPayload(image);
+        using KeyboardHidController keyboard = new();
+        using CancellationTokenSource stop = new();
+        Task colors = Task.Run(async () =>
+        {
+            Stopwatch clock = Stopwatch.StartNew();
+            while (!stop.IsCancellationRequested)
+            {
+                double t = clock.Elapsed.TotalSeconds;
+                keyboard.Pulse((byte)(100 + 100 * Math.Sin(t)), 85,
+                    (byte)(100 + 100 * Math.Cos(t)),
+                    (byte)(90 + 85 * (0.5 + 0.5 * Math.Sin(t * 7))));
+                await Task.Delay(15);
+            }
+        });
+        Task collections = Task.Run(async () =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                GC.Collect(2, GCCollectionMode.Forced, true, true);
+                await Task.Delay(100);
+            }
+        });
+        Stopwatch elapsed = Stopwatch.StartNew();
+        try
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                Stopwatch upload = Stopwatch.StartNew();
+                if (!await keyboard.ApplyWallpaperAsync(payload, $"soak-{i}", force: true))
+                    throw new Exception($"OLED upload failed during GC/lighting stress: {keyboard.Diagnostics} {keyboard.LastError}");
+                Console.WriteLine($"UPLOAD {i} elapsedMs={upload.ElapsedMilliseconds} state={keyboard.Diagnostics}");
+                byte[] mode = await keyboard.ReadStateAsync(0x21, 0);
+                if (mode[4] != 6) throw new Exception("OLED mode readback is not custom image");
+                if (i == 1)
+                {
+                    keyboard.RequestReconnect();
+                    Console.WriteLine("RECONNECT requested while colors continue");
+                }
+                await Task.Delay(8000);
+            }
+            while (elapsed.Elapsed.TotalSeconds < seconds)
+            {
+                Console.WriteLine($"SOAK elapsed={elapsed.Elapsed.TotalSeconds:0}s state={keyboard.Diagnostics}");
+                await Task.Delay(10000);
+            }
+        }
+        finally
+        {
+            stop.Cancel();
+            await Task.WhenAll(colors, collections);
+        }
+
+        keyboard.SetLightColor(25, 125, 225, 128);
+        await Task.Delay(1500);
+        byte[] light = await keyboard.ReadStateAsync(0x25, 0x0E);
+        if (light[9] != 25 || light[10] != 125 || light[11] != 225 || light[5] != 50)
+            throw new Exception("Final static color/brightness readback mismatch");
+        var result = keyboard.Diagnostics;
+        if (result.Uploads != 3 || result.Sessions != 2 || result.LightWrites < 100 || result.Failures != 0)
+            throw new Exception($"Insufficient successful hardware operations: {result}");
+        Console.WriteLine($"HARDWARE_PASS duration={elapsed.Elapsed.TotalSeconds:0}s state={result}");
+    }
+}

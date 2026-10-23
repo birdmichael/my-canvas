@@ -3,6 +3,18 @@ using System.Drawing.Imaging;
 using JonsboCanvas;
 using JonsboCanvas_WinUI;
 
+if (args.Length >= 2 && args[0] == "--keyboard-upload-light-check")
+{
+    await KeyboardHardwareChecks.CheckUploadLightingAsync(args[1]);
+    return;
+}
+
+if (args.Length >= 2 && args[0] == "--keyboard-hardware-check")
+{
+    await KeyboardHardwareChecks.RunAsync(args[1], args.Length > 2 ? int.Parse(args[2]) : 120);
+    return;
+}
+
 int passed = 0;
 void Check(bool condition, string name)
 {
@@ -23,11 +35,59 @@ string configPath = Path.Combine(scratch, "config.json");
 File.WriteAllText(configPath, "{\"DisplayMode\":\"hardware\",\"SquareDisplayMode\":\"invalid\",\"LongRotationDegrees\":180,\"SquareRotationDegrees\":7}");
 AppConfig migrated = AppConfig.Load(configPath);
 Check(migrated.SquareDisplayMode == "clock" && migrated.LongRotationDegrees == 270 && migrated.SquareRotationDegrees == 90, "invalid and missing per-screen settings recover safely");
+Check(migrated.KeyboardWallpaperSync, "keyboard wallpaper sync is enabled for existing profiles");
+Check(migrated.KeyboardDisplayMode == "auto", "keyboard OLED defaults to automatic music-cover and wallpaper content");
+Check(migrated.KeyboardLightingBrightness == 100, "keyboard lighting defaults to full brightness for existing profiles");
+Check(LightingBrightnessPolicy.FromPercent(35) == 89 && LightingBrightnessPolicy.FromPercent(80, 0.5) == 102 &&
+      LightingBrightnessPolicy.FromPercent(-2) == 0 && LightingBrightnessPolicy.FromPercent(120) == 255,
+    "per-device static brightness respects limits and scene brightness");
+Check(LightingBrightnessPolicy.ScaleEnvelope(200, 50) == 100 &&
+      LightingBrightnessPolicy.ScaleEnvelope(180, 0) == 0 && LightingBrightnessPolicy.ScaleEnvelope(180, 100) == 180,
+    "keyboard and case brightness independently scale the shared music beat envelope");
+var staticRed = new KeyboardLight(255, 0, 0, 40);
+var staticBlue = new KeyboardLight(0, 0, 255, 40);
+Check(KeyboardLightDedupPolicy.ShouldApply(staticRed, null, null) &&
+      !KeyboardLightDedupPolicy.ShouldApply(staticRed, staticRed, null) &&
+      KeyboardLightDedupPolicy.ShouldApply(staticBlue, staticRed, null) &&
+      KeyboardLightDedupPolicy.ShouldApply(staticRed, staticRed, staticBlue),
+    "unchanged static keyboard lighting is not rewritten and pending changes still apply");
+static bool Near(TimeSpan value, double seconds) =>
+    Math.Abs(value.TotalSeconds - seconds) < 0.001;
+Check(Near(KeyboardRetryBackoffPolicy.NextDelay(0), 15) &&
+      Near(KeyboardRetryBackoffPolicy.NextDelay(1), 15) &&
+      Near(KeyboardRetryBackoffPolicy.NextDelay(20), 300),
+    "disconnected keyboard retries back off to one probe every five minutes");
+var caseRed = new CaseLight(255, 0, 0);
+var caseBlue = new CaseLight(0, 0, 255);
+Check(CaseLightDedupPolicy.ShouldApply(caseRed, null, null) &&
+      !CaseLightDedupPolicy.ShouldApply(caseRed, caseRed, null) &&
+      CaseLightDedupPolicy.ShouldApply(caseBlue, caseRed, null) &&
+      CaseLightDedupPolicy.ShouldApply(caseRed, caseRed, caseBlue),
+    "hardware-mode case lighting is written once until its static colour changes");
+File.WriteAllText(configPath, "{\"KeyboardLightingBrightness\":240}");
+Check(AppConfig.Load(configPath).KeyboardLightingBrightness == 100, "out-of-range keyboard brightness is clamped safely");
+Check(KeyboardDisplay.UsesMusic("auto", true, false, false) && !KeyboardDisplay.UsesMusic("auto", false, false, false) &&
+      !KeyboardDisplay.UsesMusic("wallpaper", true, true, false) && KeyboardDisplay.UsesMusic("music", false, false, false),
+    "keyboard display mode can automatically follow music or be forced to wallpaper/music");
+var deviceSnapshot = CanvasDeviceCatalog.CreateSnapshot(ScreenState.Connected, ScreenState.Connected,
+    ScreenState.Connected, ScreenState.Searching);
+Check(deviceSnapshot.Count == 4 && deviceSnapshot.Count(d => d.State == ScreenState.Connected) == 3 &&
+      deviceSnapshot.Count(d => d.Kind == CanvasDeviceKind.Keyboard) == 1 &&
+      deviceSnapshot.Count(d => d.Capabilities.HasFlag(CanvasDeviceCapabilities.Display)) == 3 &&
+      deviceSnapshot.Count(d => d.Capabilities.HasFlag(CanvasDeviceCapabilities.Lighting)) == 2,
+    "three screens and two lighting outputs belong to four physical devices without double-counting the keyboard");
+File.WriteAllText(configPath, "{\"KeyboardDisplayMode\":\"not-a-mode\"}");
+Check(AppConfig.Load(configPath).KeyboardDisplayMode == "auto", "invalid keyboard display modes safely recover to auto");
+Check(KeyboardDisplay.ContentKey(new WallpaperSnapshot { Id = "photo|left|right" }) ==
+      KeyboardDisplay.ContentKey(new WallpaperSnapshot { Id = "photo|other|panels" }),
+    "companion photo changes do not reupload the unchanged keyboard wallpaper");
 config.SquareDisplayMode = "music";
+config.KeyboardDisplayMode = "wallpaper";
 config.PreviewDisplay = "square";
 AppConfig.Save(configPath, config);
 AppConfig reloaded = AppConfig.Load(configPath);
-Check(reloaded.SquareDisplayMode == "music" && reloaded.PreviewDisplay == "square", "independent screen settings survive restart");
+Check(reloaded.SquareDisplayMode == "music" && reloaded.PreviewDisplay == "square" &&
+      reloaded.KeyboardDisplayMode == "wallpaper", "independent screen settings survive restart");
 File.WriteAllText(configPath, "{\"DisplayMode\":\"codex\",\"SquareDisplayMode\":\"claude\"}");
 AppConfig retired = AppConfig.Load(configPath);
 Check(retired.DisplayMode == "hardware" && retired.SquareDisplayMode == "hardware", "retired AI modes migrate both screens to hardware");
@@ -45,6 +105,69 @@ using (Bitmap unchanged = new(480, 480, PixelFormat.Format32bppArgb))
 }
 
 using Bitmap marker = new(1920, 462, PixelFormat.Format32bppArgb);
+using (Bitmap artwork = new(100, 100))
+using (Bitmap nextArtwork = new(100, 100))
+{
+    WallpaperSnapshot photo = new() { Id = "landscape|panel-a|panel-b", Image = marker };
+    MusicSnapshot track = new() { Available = true, Playing = true, SongId = "song-a", Cover = artwork };
+    var selected = KeyboardDisplay.SelectContent(true, track, photo);
+    Check(selected is { } coverFrame && ReferenceEquals(coverFrame.Image, artwork) &&
+          coverFrame.Id == "music-cover:song-a",
+        "keyboard music mode selects album art instead of the background wallpaper");
+    track.Progress = 62;
+    track.CurrentLyric = "a different line";
+    Check(KeyboardDisplay.SelectContent(true, track, photo)?.Id == selected?.Id,
+        "lyric and progress changes do not trigger another album-cover upload");
+    track.SongId = "song-b";
+    track.Cover = nextArtwork;
+    var next = KeyboardDisplay.SelectContent(true, track, photo);
+    Check(next is { } nextFrame && ReferenceEquals(nextFrame.Image, nextArtwork) &&
+          nextFrame.Id != selected?.Id,
+        "changing songs selects the new cover and invalidates the keyboard image");
+    var normal = KeyboardDisplay.SelectContent(false, track, photo);
+    Check(normal is { } photoFrame && ReferenceEquals(photoFrame.Image, marker) &&
+          photoFrame.Id == "wallpaper:landscape",
+        "leaving music mode restores the ordinary wallpaper");
+    track.Cover = null;
+    Check(KeyboardDisplay.SelectContent(true, track, photo) == null,
+        "a loading album cover does not briefly replace music art with a landscape");
+    track.Available = false;
+    Check(KeyboardDisplay.SelectContent(true, track, photo) == null &&
+          KeyboardDisplay.SelectContent(false, track, photo)?.Id == "wallpaper:landscape",
+        "forced keyboard music mode holds its image while playback is unavailable; wallpaper mode stays independent");
+}
+using (Bitmap keyboardWallpaper = KeyboardDisplay.Render(marker))
+{
+    Check(keyboardWallpaper.Width == 184 && keyboardWallpaper.Height == 97,
+        "keyboard wallpaper is rendered at the Azoth 96 HE OLED size");
+}
+using (Bitmap keyboardPixels = new(KeyboardDisplay.Width, KeyboardDisplay.Height, PixelFormat.Format32bppArgb))
+{
+    using (Graphics keyboardGraphics = Graphics.FromImage(keyboardPixels))
+    {
+        keyboardGraphics.Clear(Color.White);
+        keyboardGraphics.FillRectangle(Brushes.Blue, 0, 0, 1, KeyboardDisplay.Height);
+    }
+    byte[] payload = KeyboardDisplay.EncodeFrame(keyboardPixels);
+    Check(payload.Length == KeyboardDisplay.PayloadLength &&
+          payload[0] == 0x01 && payload[1] == 0x00 && payload[2] == 0xE8 && payload[3] == 0x03,
+        "keyboard payload uses the Gear Link header and RGB565 frame size");
+    Check(payload[4] == 0x1F && payload[5] == 0x00,
+        "keyboard RGB565 encodes the bottom of the first column first");
+}
+string repositoryRoot = Path.GetFullPath(Path.Combine(
+    AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+string keyboardPreview = Path.Combine(
+    repositoryRoot, "outputs", "MyCanvas-keyboard-preview", "data", "keyboard", "20261021-keyboard.png");
+string keyboardReference = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+    "ASUS", "ArmourySDK", "Keyboard", "temp", "temp.bin");
+if (File.Exists(keyboardPreview) && File.Exists(keyboardReference))
+{
+    using Bitmap referenceSource = new(keyboardPreview);
+    Check(KeyboardDisplay.BuildPayload(referenceSource).SequenceEqual(File.ReadAllBytes(keyboardReference)),
+        "keyboard encoder matches the ASUS-generated reference payload byte for byte");
+}
 using (Graphics graphics = Graphics.FromImage(marker))
 {
     graphics.Clear(Color.Black);

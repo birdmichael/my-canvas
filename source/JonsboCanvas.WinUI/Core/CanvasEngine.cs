@@ -13,10 +13,10 @@ internal enum MusicLink { Off, Connecting, WaitingForTrack, Synced }
 // render thread; the frames are only valid during the call.
 internal interface IPreviewSink
 {
-    void Present(DrawingBitmap longFrame, DrawingBitmap squareFrame);
+    void Present(DrawingBitmap longFrame, DrawingBitmap squareFrame, DrawingBitmap keyboardFrame);
 }
 
-// Drives the two screens, the case lighting, the wallpaper and the accent
+// Drives the screen and lighting capabilities, the wallpaper and the accent
 // colour. It runs for the whole process on its own thread, so the window can
 // be closed (and its memory released) while everything keeps going. Windows
 // read its state and hand it changes; anything that touches the renderer or
@@ -32,6 +32,7 @@ internal sealed class CanvasEngine : IDisposable
     private readonly DualDisplayController _display;
     private readonly WeatherService _weather;
     private readonly WallpaperService _wallpaper;
+    private readonly KeyboardHidController _keyboard;
     private MetricsCollector? _metricsCollector;
     private NeteaseMediaCollector? _media;
     private MetricsSnapshot? _metrics;
@@ -80,6 +81,7 @@ internal sealed class CanvasEngine : IDisposable
         _renderer = new DualLayoutRenderer(Config);
         _weather = new WeatherService(Config.WeatherLocation);
         _wallpaper = new WallpaperService(EmbeddedRuntime.DataDirectory);
+        _keyboard = new KeyboardHidController();
         _wallpaper.SetWallhavenQuery(Config.WallpaperQuery);
         _wallpaper.SetSource(Config.WallpaperSource);
         if (Config.WallpaperSource == "custom")
@@ -137,6 +139,11 @@ internal sealed class CanvasEngine : IDisposable
 
     public ScreenState LongState => CaptureMode ? ScreenState.Off : _display.LongState;
     public ScreenState SquareState => CaptureMode ? ScreenState.Off : _display.SquareState;
+    public ScreenState KeyboardState => CaptureMode ? ScreenState.Off : _keyboard.State;
+    public int ConnectedDeviceCount => Devices.Count(device => device.State == ScreenState.Connected);
+    public IReadOnlyList<CanvasDeviceSnapshot> Devices => CanvasDeviceCatalog.CreateSnapshot(
+        LongState, SquareState, KeyboardState, CaptureMode ? ScreenState.Off : LightingController.State,
+        _keyboard.LastError, LightingController.LastError);
     public string LongPortName => _display.LongPortName;
     public bool ConnectionRequested => _connectionRequested;
     public bool ConnectBusy => _connectBusy || _resumeBusy;
@@ -145,6 +152,10 @@ internal sealed class CanvasEngine : IDisposable
     public MusicSnapshot? Music => _music;
     public WallpaperService Wallpapers => _wallpaper;
     public DrawingColor LightColor => DrawingColor.FromArgb(Volatile.Read(ref _lightArgb));
+    public bool KeyboardUploading => _keyboard.IsUploading;
+    public (int Sessions, int LightWrites, int Uploads, int Failures) KeyboardDiagnostics =>
+        _keyboard.Diagnostics;
+    public string KeyboardLastError => _keyboard.LastError;
 
     public MusicLink MusicState =>
         CaptureMode || _music?.Realtime == true ? MusicLink.Synced
@@ -206,11 +217,12 @@ internal sealed class CanvasEngine : IDisposable
     {
         DateTime now = DateTime.UtcNow;
         string mode = Config.DisplayMode, squareMode = Config.SquareDisplayMode;
-        bool needsMusic = Config.LightingEnabled || mode is "music" or "auto" || squareMode is "music" or "auto";
+        bool needsMusic = Config.LightingEnabled || Config.KeyboardWallpaperSync && Config.KeyboardDisplayMode != "wallpaper" ||
+            mode is "music" or "auto" || squareMode is "music" or "auto";
         if (!CaptureMode && needsMusic &&
             (_music == null || (now - _musicAt).TotalMilliseconds >= (_music.Realtime ? 20 : 500)))
         {
-            if (_media == null && (mode == "music" || squareMode == "music" || NeteaseLauncher.IsRunning()))
+            if (_media == null && (mode == "music" || squareMode == "music" || Config.KeyboardDisplayMode == "music" || NeteaseLauncher.IsRunning()))
                 _media = new NeteaseMediaCollector(Config.NeteaseDebugPort);
             _music = _media?.Collect() ?? new MusicSnapshot();
             _musicAt = now;
@@ -228,23 +240,27 @@ internal sealed class CanvasEngine : IDisposable
             _metrics = _metricsCollector.Collect();
             _metricsAt = now;
         }
-        if (longShown != "music" || squareShown != "music")
+        if (longShown != "music" || squareShown != "music" || Config.KeyboardWallpaperSync)
             _wallpaper.Refresh();
         SyncDesktopWallpaper();
         SyncAccentColor();
+        SyncKeyboardWallpaper();
 
         if (!OutputActive) return;
         if (squareShown != "music" && !CaptureMode) _weather.Refresh();
         DrawingBitmap longFrame = _renderer.RenderLong(_metrics, _music, longShown, _wallpaper.Current);
         DrawingBitmap squareFrame;
-        try { squareFrame = _renderer.RenderSquare(squareShown, _metrics, _music, _weather.Current, _wallpaper.Current); }
+        try { squareFrame = _renderer.RenderSquare(squareShown, _metrics, _music, _weather.Current ?? (CaptureMode ? CaptureWeather() : null), _wallpaper.Current); }
         catch { longFrame.Dispose(); throw; }
+        DrawingBitmap? keyboardFrame = null;
+        try { if (Preview is not null) keyboardFrame = RenderKeyboardFrame(); }
+        catch { longFrame.Dispose(); squareFrame.Dispose(); throw; }
         ReleaseWallpaperPhotos();
 
         IPreviewSink? preview = Preview;
         if (preview != null)
         {
-            try { preview.Present(longFrame, squareFrame); }
+            try { if (keyboardFrame is not null) preview.Present(longFrame, squareFrame, keyboardFrame); }
             catch (Exception exception) { Log.Write("Preview failed: " + exception.Message); }
         }
         if (!CaptureMode && _connectionRequested)
@@ -254,6 +270,7 @@ internal sealed class CanvasEngine : IDisposable
             longFrame.Dispose();
             squareFrame.Dispose();
         }
+        keyboardFrame?.Dispose();
     }
 
     // The renderer keeps its own layers and the lighting its colour, so once both
@@ -292,14 +309,18 @@ internal sealed class CanvasEngine : IDisposable
     {
         var (color, level) = LightColorFor(musicActive);
         Volatile.Write(ref _lightArgb, color.ToArgb());
+        if (CaptureMode) return;
         if (!Config.LightingEnabled)
         {
+            if (!CaptureMode) _keyboard.SetLightColor(0, 0, 0, 0);
             LightingController.SetColor(0, 0, 0, 0);
             return;
         }
         if (_beatCts != null) return;
-        byte brightness = (byte)Math.Clamp(Math.Round(Volatile.Read(ref _brightness) * 255 / 100.0 * level), 0, 255);
-        LightingController.SetColor(color.R, color.G, color.B, brightness);
+        byte caseBrightness = LightingBrightnessPolicy.FromPercent(Volatile.Read(ref _brightness), level);
+        byte keyboardBrightness = LightingBrightnessPolicy.FromPercent(Config.KeyboardLightingBrightness, level);
+        if (!CaptureMode) _keyboard.SetLightColor(color.R, color.G, color.B, keyboardBrightness);
+        LightingController.SetColor(color.R, color.G, color.B, caseBrightness);
     }
 
     // The case's base colour, before brightness and the beat effect.
@@ -354,7 +375,7 @@ internal sealed class CanvasEngine : IDisposable
 
     private void UpdateBeatLoop(bool musicVisible)
     {
-        bool active = Config.LightingEnabled && Config.LightingBeatSync && musicVisible
+        bool active = !CaptureMode && Config.LightingEnabled && Config.LightingBeatSync && musicVisible
             && _music?.Available == true && _music.Playing;
         if (active && _beatCts == null)
         {
@@ -396,7 +417,7 @@ internal sealed class CanvasEngine : IDisposable
                 bass = full = SystemAudioLevel.GetPeak();
             double now = clock.Elapsed.TotalSeconds;
             double dt = now - previous;
-            var frame = envelope.Sample(bass, full, Volatile.Read(ref _brightness), dt);
+            var frame = envelope.Sample(bass, full, 100, dt);
             if (now - lastAudioLog >= 3)
             {
                 lastAudioLog = now;
@@ -423,7 +444,9 @@ internal sealed class CanvasEngine : IDisposable
             {
                 // Mode switches cancel under this lock before restoring static lighting.
                 if (token.IsCancellationRequested || _disposed) break;
-                LightingController.Pulse(Lift(r), Lift(g), Lift(b), frame.Brightness);
+                byte lr = Lift(r), lg = Lift(g), lb = Lift(b);
+                if (!CaptureMode) _keyboard.Pulse(lr, lg, lb, LightingBrightnessPolicy.ScaleEnvelope(frame.Brightness, Config.KeyboardLightingBrightness));
+                LightingController.Pulse(lr, lg, lb, LightingBrightnessPolicy.ScaleEnvelope(frame.Brightness, Volatile.Read(ref _brightness)));
             }
             previous = now;
             try { await Task.Delay(15, token); } catch (OperationCanceledException) { break; }
@@ -435,6 +458,12 @@ internal sealed class CanvasEngine : IDisposable
     {
         Config.LightingBrightness = value;
         Volatile.Write(ref _brightness, value);
+        Run(() => ApplyLighting(MusicPlaying));
+    }
+
+    public void SetKeyboardBrightness(int value)
+    {
+        Config.KeyboardLightingBrightness = Math.Clamp(value, 0, 100);
         Run(() => ApplyLighting(MusicPlaying));
     }
 
@@ -452,6 +481,126 @@ internal sealed class CanvasEngine : IDisposable
     }
 
     // ---------- desktop wallpaper and accent ----------
+
+    private string _keyboardWallpaperRequestedId = "";
+    private DateTime _keyboardWallpaperRetryAt;
+    private string _keyboardWallpaperCandidate = "";
+    private DateTime _keyboardWallpaperCandidateSince;
+    private DrawingBitmap? _keyboardPreview;
+    private string _keyboardPreviewId = "";
+    private bool KeyboardUsesMusic => KeyboardDisplay.UsesMusic(
+        Config.KeyboardDisplayMode, MusicPlaying, _resolvedLong == "music", _resolvedSquare == "music");
+    public string KeyboardDisplayMode => Config.KeyboardDisplayMode;
+    public string KeyboardContentName => KeyboardUsesMusic ? "music" : "wallpaper";
+    public bool KeyboardWaitingForCover => KeyboardUsesMusic && !HasKeyboardImage;
+    public bool HasKeyboardImage => KeyboardUsesMusic
+        ? _music?.Available == true && _music.Cover != null : _wallpaper.Current != null;
+
+    private DrawingBitmap RenderKeyboardFrame()
+    {
+        var content = KeyboardDisplay.SelectContent(KeyboardUsesMusic, _music, _wallpaper.Current);
+        if (content is { } selected && selected.Id != _keyboardPreviewId)
+        {
+            DrawingBitmap next = KeyboardDisplay.Render(selected.Image);
+            _keyboardPreview?.Dispose();
+            _keyboardPreview = next;
+            _keyboardPreviewId = selected.Id;
+        }
+        // Hold the last image while album art loads, just like the device does.
+        return _keyboardPreview is { } previous ? new DrawingBitmap(previous)
+            : new DrawingBitmap(KeyboardDisplay.Width, KeyboardDisplay.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+    }
+
+    private void SyncKeyboardWallpaper()
+    {
+        if (CaptureMode || !Config.KeyboardWallpaperSync) return;
+        var content = KeyboardDisplay.SelectContent(KeyboardUsesMusic, _music, _wallpaper.Current);
+        if (content is not { } current) return;
+        string id = current.Id;
+        if (string.Equals(id, _keyboard.AppliedWallpaperId, StringComparison.Ordinal)) return;
+
+        DateTime now = DateTime.UtcNow;
+        if (id != _keyboardWallpaperCandidate)
+        {
+            _keyboardWallpaperCandidate = id;
+            _keyboardWallpaperCandidateSince = now;
+        }
+        double settleSeconds = id.StartsWith("music-cover:", StringComparison.Ordinal) ? 0.3 : 2;
+        if (_keyboard.IsUploading || (now - _keyboardWallpaperCandidateSince).TotalSeconds < settleSeconds)
+            return;
+        if (string.Equals(id, _keyboardWallpaperRequestedId, StringComparison.Ordinal) &&
+            now < _keyboardWallpaperRetryAt)
+            return;
+
+        _keyboardWallpaperRequestedId = id;
+        _keyboardWallpaperRetryAt = now + KeyboardRetryBackoffPolicy.NextDelay(_keyboard.ConsecutiveFailures);
+        try
+        {
+            byte[] payload = KeyboardDisplay.BuildPayload(current.Image);
+            _ = _keyboard.ApplyWallpaperAsync(payload, id);
+        }
+        catch (Exception exception)
+        {
+            Log.Write("Keyboard wallpaper preparation failed: " + exception.Message);
+        }
+    }
+
+    public async Task<bool> ApplyKeyboardWallpaperAsync(bool force = false)
+    {
+        if (CaptureMode) return false;
+        try
+        {
+            // Image ownership stays on the render thread, which also releases
+            // decoded wallpaper photos after rendering.
+            var prepared = await RunAsync<(byte[] Payload, string Id)?>(() =>
+            {
+                var content = KeyboardDisplay.SelectContent(KeyboardUsesMusic, _music, _wallpaper.Current);
+                return content is not { } current ? null
+                    : (Payload: KeyboardDisplay.BuildPayload(current.Image), Id: current.Id);
+            });
+            return prepared is { } image &&
+                await _keyboard.ApplyWallpaperAsync(image.Payload, image.Id, force);
+        }
+        catch (Exception exception)
+        {
+            Log.Write("Keyboard wallpaper sync failed: " + exception.Message);
+            return false;
+        }
+    }
+
+    public void SetKeyboardWallpaperSync(bool enabled)
+    {
+        Config.KeyboardWallpaperSync = enabled;
+        _keyboardWallpaperRequestedId = "";
+        _keyboardWallpaperRetryAt = DateTime.MinValue;
+        SaveConfig();
+        Invalidate();
+    }
+
+    public void SetKeyboardDisplayMode(string mode)
+    {
+        Config.KeyboardDisplayMode = mode is "wallpaper" or "music" ? mode : "auto";
+        _keyboardWallpaperRequestedId = "";
+        _keyboardWallpaperRetryAt = DateTime.MinValue;
+        SaveConfig();
+        Invalidate();
+    }
+
+    public void ReconnectKeyboard()
+    {
+        if (CaptureMode) return;
+        // Closing a HID session may wait for I/O; never do it on the UI thread.
+        _ = Task.Run(() =>
+        {
+            _keyboard.RequestReconnect();
+            Run(() =>
+            {
+                _keyboardWallpaperRequestedId = "";
+                _keyboardWallpaperRetryAt = DateTime.MinValue;
+            });
+            Invalidate();
+        });
+    }
 
     private string _desktopWallpaperPath = "";
     private DrawingColor _accentApplied = DrawingColor.Empty;
@@ -763,6 +912,17 @@ internal sealed class CanvasEngine : IDisposable
         }
     }
 
+    private static WeatherSnapshot CaptureWeather() => new()
+    {
+        Temperature = 21,
+        High = 24,
+        Low = 17,
+        Humidity = 58,
+        Code = 2,
+        City = "Shanghai",
+        FetchedAt = DateTime.UtcNow,
+    };
+
     private static MusicSnapshot CaptureMusic() => new()
     {
         Available = true,
@@ -791,6 +951,8 @@ internal sealed class CanvasEngine : IDisposable
         _metricsCollector?.Dispose();
         _renderer.Dispose();
         _weather.Dispose();
+        _keyboard.Dispose();
+        _keyboardPreview?.Dispose();
         _wallpaper.Dispose();
     }
 }

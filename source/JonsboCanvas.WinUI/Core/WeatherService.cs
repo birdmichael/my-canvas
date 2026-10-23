@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
 using JonsboCanvas;
+using Windows.Devices.Geolocation;
 
 namespace JonsboCanvas_WinUI;
 
@@ -12,11 +13,14 @@ internal sealed class WeatherSnapshot
     public double Low { get; init; }
     public int Humidity { get; init; }
     public int Code { get; init; }
+    public string? City { get; init; }
     public DateTime FetchedAt { get; init; }
 }
 
-// Open-Meteo needs no API key. Without a configured "lat,lon" the location is
-// resolved once per session from the public IP.
+// Open-Meteo needs no API key. Without a configured "lat,lon" or place name the
+// location is resolved once per session from Windows location services, falling
+// back to the public IP (which follows a proxy/VPN exit instead of the machine);
+// the city label comes from IP lookup or keyless reverse geocoding.
 internal sealed class WeatherService : IDisposable
 {
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(30);
@@ -24,6 +28,7 @@ internal sealed class WeatherService : IDisposable
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
     private readonly string _configuredLocation;
     private (double Latitude, double Longitude)? _coordinates;
+    private volatile string? _city;
     private DateTime _nextAttemptUtc = DateTime.MinValue;
     private int _busy;
     private volatile WeatherSnapshot? _current;
@@ -43,8 +48,19 @@ internal sealed class WeatherService : IDisposable
         {
             try
             {
-                _coordinates ??= ParseLocation(_configuredLocation) ?? await LocateAsync();
-                _current = await FetchAsync(_coordinates.Value.Latitude, _coordinates.Value.Longitude);
+                if (_coordinates == null)
+                {
+                    _coordinates = ParseLocation(_configuredLocation)
+                        ?? (string.IsNullOrWhiteSpace(_configuredLocation) ? null : await GeocodeAsync(_configuredLocation))
+                        ?? await WindowsLocateAsync()
+                        ?? await LocateAsync();
+                }
+                try
+                {
+                    _city ??= await CityNameAsync(_coordinates.Value.Latitude, _coordinates.Value.Longitude);
+                }
+                catch { /* The city label is cosmetic; weather still renders without it. */ }
+                _current = await FetchAsync(_coordinates.Value.Latitude, _coordinates.Value.Longitude, _city);
                 _nextAttemptUtc = DateTime.UtcNow + RefreshInterval;
             }
             catch (Exception exception)
@@ -70,14 +86,65 @@ internal sealed class WeatherService : IDisposable
     private async Task<(double, double)> LocateAsync()
     {
         using JsonDocument document = JsonDocument.Parse(
-            await _http.GetStringAsync("http://ip-api.com/json/?fields=status,lat,lon"));
+            await _http.GetStringAsync("http://ip-api.com/json/?fields=status,lat,lon,city"));
         JsonElement root = document.RootElement;
         if (root.GetProperty("status").GetString() != "success")
             throw new InvalidOperationException("IP geolocation unavailable");
+        if (root.TryGetProperty("city", out JsonElement city) && !string.IsNullOrWhiteSpace(city.GetString()))
+            _city = city.GetString();
         return (root.GetProperty("lat").GetDouble(), root.GetProperty("lon").GetDouble());
     }
 
-    private async Task<WeatherSnapshot> FetchAsync(double latitude, double longitude)
+    // Windows location services (Wi-Fi/GPS position). Returns null when the user
+    // has not granted location access or no fix is available; callers fall back
+    // to IP geolocation.
+    private static async Task<(double, double)?> WindowsLocateAsync()
+    {
+        try
+        {
+            if (await Geolocator.RequestAccessAsync() != GeolocationAccessStatus.Allowed)
+                return null;
+            Geolocator geolocator = new() { DesiredAccuracy = PositionAccuracy.Default };
+            Geoposition position = await geolocator.GetGeopositionAsync(
+                TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(8));
+            BasicGeoposition point = position.Coordinate.Point.Position;
+            return (point.Latitude, point.Longitude);
+        }
+        catch (Exception exception)
+        {
+            Log.Write("Windows geolocation unavailable: " + exception.Message);
+            return null;
+        }
+    }
+
+    // Resolves a configured place name through Open-Meteo's keyless geocoder.
+    private async Task<(double, double)?> GeocodeAsync(string name)
+    {
+        using JsonDocument document = JsonDocument.Parse(await _http.GetStringAsync(
+            "https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&format=json&name=" +
+            Uri.EscapeDataString(name)));
+        if (!document.RootElement.TryGetProperty("results", out JsonElement results) ||
+            results.GetArrayLength() == 0)
+            return null;
+        JsonElement first = results[0];
+        _city ??= first.GetProperty("name").GetString();
+        return (first.GetProperty("latitude").GetDouble(), first.GetProperty("longitude").GetDouble());
+    }
+
+    // Keyless reverse geocode for coordinates that arrived without a city name.
+    private static async Task<string?> CityNameAsync(double latitude, double longitude)
+    {
+        using HttpClient http = new() { Timeout = TimeSpan.FromSeconds(10) };
+        using JsonDocument document = JsonDocument.Parse(await http.GetStringAsync(FormattableString.Invariant(
+            $"https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={latitude:0.###}&longitude={longitude:0.###}&localityLanguage=en")));
+        foreach (string key in new[] { "city", "locality", "principalSubdivision" })
+            if (document.RootElement.TryGetProperty(key, out JsonElement value) &&
+                !string.IsNullOrWhiteSpace(value.GetString()))
+                return value.GetString();
+        return null;
+    }
+
+    private async Task<WeatherSnapshot> FetchAsync(double latitude, double longitude, string? city)
     {
         string url = FormattableString.Invariant(
             $"https://api.open-meteo.com/v1/forecast?latitude={latitude:0.###}&longitude={longitude:0.###}") +
@@ -93,6 +160,7 @@ internal sealed class WeatherService : IDisposable
             Code = current.GetProperty("weather_code").GetInt32(),
             High = daily.GetProperty("temperature_2m_max")[0].GetDouble(),
             Low = daily.GetProperty("temperature_2m_min")[0].GetDouble(),
+            City = city,
             FetchedAt = DateTime.UtcNow,
         };
     }

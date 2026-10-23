@@ -42,11 +42,12 @@ namespace JonsboCanvas
         public string LightingHardwareColor { get; set; }
         public string LightingMusicColor { get; set; }
         public int LightingBrightness { get; set; }
+        public int KeyboardLightingBrightness { get; set; }
         public bool LightingBeatSync { get; set; }
         public bool LightingCoverColor { get; set; }
         // Outside music, take the light's colour and brightness from the wallpaper.
         public bool LightingWallpaperColor { get; set; }
-        // "lat,lon"; empty locates by public IP.
+        // "lat,lon" or a place name; empty uses Windows location, falling back to public IP.
         public string WeatherLocation { get; set; }
         // Hardware-mode photo: "bing" (image of the day), "wallhaven" (hourly scenery) or "custom" (WallpaperPath).
         public string WallpaperSource { get; set; }
@@ -58,6 +59,10 @@ namespace JonsboCanvas
         // Windows accent colour follows the lighting colour; the user's own one is restored when turned off.
         public bool AccentColorSync { get; set; }
         public string AccentColorOriginal { get; set; }
+        // Write each new MyCanvas wallpaper directly to the ROG keyboard OLED.
+        public bool KeyboardWallpaperSync { get; set; }
+        // Keyboard OLED content: auto follows playback, or force wallpaper/music.
+        public string KeyboardDisplayMode { get; set; }
         // Long-screen lyrics: "apple" (flowing cover colours), "spotify" (flat colour) or "bigtype" (one huge line).
         public string LyricStyle { get; set; }
 
@@ -98,6 +103,7 @@ namespace JonsboCanvas
             LightingHardwareColor = "#FF6B35";
             LightingMusicColor = "#8B5CF6";
             LightingBrightness = 100;
+            KeyboardLightingBrightness = 100;
             LightingBeatSync = true;
             LightingCoverColor = true;
             LightingWallpaperColor = true;
@@ -109,6 +115,8 @@ namespace JonsboCanvas
             DesktopWallpaperOriginal = "";
             AccentColorSync = true;
             AccentColorOriginal = "";
+            KeyboardWallpaperSync = true;
+            KeyboardDisplayMode = "auto";
             LyricStyle = "apple";
         }
 
@@ -173,6 +181,9 @@ namespace JonsboCanvas
                 if (loaded.WallpaperSource != "custom" && loaded.WallpaperSource != "wallhaven")
                     loaded.WallpaperSource = "bing";
                 loaded.LyricStyle = NormalizeLyricStyle(loaded.LyricStyle);
+                if (json.IndexOf("\"KeyboardLightingBrightness\"", StringComparison.OrdinalIgnoreCase) < 0)
+                    loaded.KeyboardLightingBrightness = defaults.KeyboardLightingBrightness;
+                loaded.KeyboardLightingBrightness = Math.Clamp(loaded.KeyboardLightingBrightness, 0, 100);
                 if (loaded.LongRotationDegrees != 90 && loaded.LongRotationDegrees != 270)
                     loaded.LongRotationDegrees = defaults.LongRotationDegrees;
                 if (json.IndexOf("\"SquareRotationDegrees\"", StringComparison.OrdinalIgnoreCase) < 0 ||
@@ -187,6 +198,11 @@ namespace JonsboCanvas
                     loaded.MinimizeToTray = defaults.MinimizeToTray;
                 if (json.IndexOf("\"StartHiddenOnAutoStart\"", StringComparison.OrdinalIgnoreCase) < 0)
                     loaded.StartHiddenOnAutoStart = defaults.StartHiddenOnAutoStart;
+                if (json.IndexOf("\"KeyboardWallpaperSync\"", StringComparison.OrdinalIgnoreCase) < 0)
+                    loaded.KeyboardWallpaperSync = defaults.KeyboardWallpaperSync;
+                loaded.KeyboardDisplayMode = OrDefault(loaded.KeyboardDisplayMode, defaults.KeyboardDisplayMode).ToLowerInvariant();
+                if (loaded.KeyboardDisplayMode != "auto" && loaded.KeyboardDisplayMode != "wallpaper" && loaded.KeyboardDisplayMode != "music")
+                    loaded.KeyboardDisplayMode = defaults.KeyboardDisplayMode;
                 loaded.RefreshMilliseconds = Math.Max(250, Math.Min(10000,
                     loaded.RefreshMilliseconds <= 0 ? defaults.RefreshMilliseconds : loaded.RefreshMilliseconds));
                 if (loaded.RotationDegrees != 0 && loaded.RotationDegrees != 90 &&

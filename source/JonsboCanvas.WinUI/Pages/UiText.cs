@@ -41,6 +41,7 @@ internal static class UiText
         "music" => "Mode.Music",
         "clock" => "Mode.Clock",
         "auto" => "Mode.Auto",
+        "wallpaper" => "Mode.Wallpaper",
         _ => "Mode.Hardware",
     });
 

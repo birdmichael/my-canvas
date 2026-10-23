@@ -16,6 +16,7 @@ public sealed partial class HomePage : Page, ILivePage, IPreviewSink
     private readonly CanvasEngine _engine = App.Engine;
     private readonly byte[] _longPixels = new byte[1920 * 462 * 4];
     private readonly byte[] _squarePixels = new byte[480 * 480 * 4];
+    private readonly byte[] _keyboardPixels = new byte[KeyboardDisplay.Width * KeyboardDisplay.Height * 4];
     private DispatcherQueue? _dispatcher;
     private int _uploadPending;
     private string _wallpaperShown = "";
@@ -26,8 +27,10 @@ public sealed partial class HomePage : Page, ILivePage, IPreviewSink
         InitializeComponent();
         LongMode.SetOptions(("auto", L("Mode.Auto")), ("hardware", L("Mode.Hardware")), ("music", L("Mode.Music")));
         SquareMode.SetOptions(("clock", L("Mode.Clock")), ("auto", L("Mode.Auto")), ("music", L("Mode.Music")));
+        KeyboardMode.SetOptions(("auto", L("Mode.Auto")), ("wallpaper", L("Mode.Wallpaper")), ("music", L("Mode.Music")));
         LongMode.SelectionChanged += mode => _engine.SetLongMode(mode);
         SquareMode.SelectionChanged += mode => _engine.SetSquareMode(mode);
+        KeyboardMode.SelectionChanged += mode => _engine.SetKeyboardDisplayMode(mode);
         Loaded += HomePage_Loaded;
         Unloaded += HomePage_Unloaded;
     }
@@ -38,6 +41,7 @@ public sealed partial class HomePage : Page, ILivePage, IPreviewSink
         _syncing = true;
         LongMode.Selected = _engine.Config.DisplayMode;
         SquareMode.Selected = _engine.Config.SquareDisplayMode == "hardware" ? "clock" : _engine.Config.SquareDisplayMode;
+        KeyboardMode.Selected = _engine.Config.KeyboardDisplayMode;
         LightToggle.IsOn = _engine.Config.LightingEnabled;
         BrightnessSlider.Value = _engine.Config.LightingBrightness;
         BrightnessText.Text = _engine.Config.LightingBrightness + "%";
@@ -54,11 +58,12 @@ public sealed partial class HomePage : Page, ILivePage, IPreviewSink
 
     // Render thread: copies the frames and hands them to the UI thread, skipping
     // frames while the previous upload is still queued.
-    public void Present(DrawingBitmap longFrame, DrawingBitmap squareFrame)
+    public void Present(DrawingBitmap longFrame, DrawingBitmap squareFrame, DrawingBitmap keyboardFrame)
     {
         if (_dispatcher == null || Interlocked.CompareExchange(ref _uploadPending, 1, 0) != 0) return;
         CopyPixels(longFrame, _longPixels);
         CopyPixels(squareFrame, _squarePixels);
+        CopyPixels(keyboardFrame, _keyboardPixels);
         if (!_dispatcher.TryEnqueue(Upload)) Volatile.Write(ref _uploadPending, 0);
     }
 
@@ -66,6 +71,7 @@ public sealed partial class HomePage : Page, ILivePage, IPreviewSink
     {
         LongPreview.Show(_longPixels, 1920, 462);
         SquarePreview.Show(_squarePixels, 480, 480);
+        KeyboardPreview.Show(_keyboardPixels, KeyboardDisplay.Width, KeyboardDisplay.Height);
         Volatile.Write(ref _uploadPending, 0);
     }
 
@@ -85,12 +91,18 @@ public sealed partial class HomePage : Page, ILivePage, IPreviewSink
     public void Refresh()
     {
         ScreenState longState = _engine.LongState, squareState = _engine.SquareState;
-        int online = (longState == ScreenState.Connected ? 1 : 0) + (squareState == ScreenState.Connected ? 1 : 0);
-        ConnectionText.Text = _engine.CaptureMode ? L("State.Demo") : LF("Home.Online", online);
+        var devices = _engine.Devices;
+        ConnectionText.Text = _engine.CaptureMode ? L("State.Demo")
+            : LF("Home.Online", devices.Count(d => d.State == ScreenState.Connected), devices.Count);
         LongStateText.Text = ScreenState(longState, _engine.LongPortName) + " · " + LF("Home.Showing", ModeName(_engine.ShownLongMode));
         LongDot.Fill = StateBrush(longState);
         SquareStateText.Text = ScreenState(squareState) + " · " + LF("Home.Showing", ModeName(_engine.ShownSquareMode == "music" ? "music" : "clock"));
         SquareDot.Fill = StateBrush(squareState);
+        KeyboardStateText.Text = ScreenState(_engine.KeyboardState) + " · " +
+            (_engine.KeyboardUploading ? L("State.Uploading") : !_engine.Config.KeyboardWallpaperSync ? L("State.SyncOff")
+            : _engine.KeyboardWaitingForCover ? L("State.WaitingForCover")
+            : LF("Home.Showing", ModeName(_engine.KeyboardContentName)));
+        KeyboardDot.Fill = StateBrush(_engine.KeyboardState);
 
         bool requested = _engine.ConnectionRequested;
         bool busy = _engine.ConnectBusy;
@@ -149,7 +161,7 @@ public sealed partial class HomePage : Page, ILivePage, IPreviewSink
             : Windows.UI.Color.FromArgb(255, 0x2B, 0x2B, 0x2B));
         LightSwatch.Opacity = config.LightingEnabled ? 1 : 0.5;
         LightTitle.Text = config.LightingEnabled ? $"#{light.R:X2}{light.G:X2}{light.B:X2}" : L("Common.Off");
-        bool music = _engine.ShownLongMode == "music" || _engine.ShownSquareMode == "music";
+        bool music = _engine.Music is { Available: true, Playing: true };
         string source = music
             ? L(config.LightingCoverColor ? "Lighting.FromCover" : "Lighting.Fixed")
             : L(config.LightingWallpaperColor ? "Lighting.FromWallpaper" : "Lighting.Fixed");

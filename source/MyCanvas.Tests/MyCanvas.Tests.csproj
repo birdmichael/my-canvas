@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -28,6 +28,13 @@
     <Compile Include="../JonsboCanvas.WinUI/Core/DualLayoutRenderer.Folia.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/DualLayoutRenderer.Timing.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/WallpaperService.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardDisplay.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardHidController.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardLightDedupPolicy.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardRetryBackoffPolicy.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/CaseLightDedupPolicy.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/CanvasDeviceModel.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/LightingBrightnessPolicy.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/DominantColor.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/SystemAccent.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/StartupTaskManager.cs" />

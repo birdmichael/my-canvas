@@ -22,7 +22,7 @@
                     <FontIcon FontSize="28" Glyph="&#xE7F4;" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                         <TextBlock x:Name="ConnectionTitle" Style="{StaticResource SubtitleTextBlockStyle}" />
-                        <TextBlock Style="{StaticResource CaptionStyle}" Text="{local:Str Key=Devices.Connection.Hint}" />
+                        <TextBlock x:Name="CapabilitiesText" Style="{StaticResource CaptionStyle}" />
                     </StackPanel>
                     <Button x:Name="ConnectButton" Grid.Column="2" MinWidth="120" VerticalAlignment="Center" Click="ConnectButton_Click">
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -32,6 +32,7 @@
                     </Button>
                 </Grid>
             </Border>
+            <TextBlock Margin="0,4,0,8" Style="{StaticResource CaptionStyle}" Text="{local:Str Key=Connection.ScreensHint}" TextWrapping="Wrap" />
 
             <local:SettingsCard x:Name="LongCard" Glyph="&#xE7F4;" Header="{local:Str Key=Devices.Long}">
                 <StackPanel Orientation="Horizontal" Spacing="16">
@@ -49,6 +50,24 @@
                         <TextBlock x:Name="SquareState" VerticalAlignment="Center" Style="{StaticResource CaptionStyle}" />
                     </StackPanel>
                     <ComboBox x:Name="SquareRotation" MinWidth="120" SelectionChanged="SquareRotation_SelectionChanged" />
+                </StackPanel>
+            </local:SettingsCard>
+            <local:SettingsCard x:Name="KeyboardCard" Glyph="&#xE950;" Header="{local:Str Key=Devices.Keyboard}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Ellipse x:Name="KeyboardDot" Width="8" Height="8" VerticalAlignment="Center" />
+                    <TextBlock x:Name="KeyboardState" VerticalAlignment="Center" Style="{StaticResource CaptionStyle}" />
+                </StackPanel>
+            </local:SettingsCard>
+            <local:SettingsCard x:Name="MotherboardCard" Glyph="&#xE950;" Header="{local:Str Key=Devices.Motherboard}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Ellipse x:Name="MotherboardDot" Width="8" Height="8" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MotherboardState" VerticalAlignment="Center" Style="{StaticResource CaptionStyle}" />
+                </StackPanel>
+            </local:SettingsCard>
+            <local:SettingsCard Glyph="&#xE72C;" Header="{local:Str Key=Devices.Keyboard.Reconnect}">
+                <StackPanel Spacing="8">
+                    <TextBlock x:Name="KeyboardDiagnostics" Style="{StaticResource CaptionStyle}" />
+                    <Button x:Name="ReconnectKeyboardButton" HorizontalAlignment="Right" Click="ReconnectKeyboardButton_Click" Content="{local:Str Key=Devices.Keyboard.Reconnect}" />
                 </StackPanel>
             </local:SettingsCard>
 
