@@ -42,9 +42,12 @@ internal sealed class KeyboardHidController : IDisposable
     private bool _lightWorkerRunning;
     private KeyboardLight? _appliedLight;
     private bool _sessionNeedsLight;
+    private int _lightGeneration;
     private string _appliedWallpaperId = "";
     private DateTime _lastFailureLog;
     private DateTime _lastLightSuccessLog;
+    private DateTime _lastPresenceCheck = DateTime.MinValue;
+    private bool _lastKeyboardPresent;
     private int _sessionCount, _lightWrites, _uploads, _failures, _consecutiveFailures;
     private volatile string _lastDisplayError = "";
     private volatile string _lastLightError = "";
@@ -61,6 +64,42 @@ internal sealed class KeyboardHidController : IDisposable
     internal int SessionGeneration => Volatile.Read(ref _sessionCount);
     internal bool SessionNeedsLight => Volatile.Read(ref _sessionNeedsLight);
 
+    internal bool IsReceiverPresent()
+    {
+        try
+        {
+            return EnumerateInterfaces().Any(item =>
+                item.ProductId == ReceiverProductId &&
+                item.UsagePage == ReceiverControlUsagePage &&
+                item.Usage == 1);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // Cheap local status check; it never sends a HID command and is throttled
+    // because ROG Live Service updates this XML asynchronously.
+    internal void CheckExternalReconnect()
+    {
+        if (_disposed || DateTime.UtcNow - _lastPresenceCheck < TimeSpan.FromSeconds(2)) return;
+        _lastPresenceCheck = DateTime.UtcNow;
+        bool present = KeyboardExternalPresence.IsKeyboardPresent();
+        bool sessionAlive = _session != null;
+        bool becamePresent = present && !_lastKeyboardPresent;
+        bool presentWithoutSession = present && !sessionAlive && _sessionCount == 0;
+        if (present && !sessionAlive && (becamePresent || presentWithoutSession))
+        {
+            LogInfo("ROG keyboard reconnected outside MyCanvas; reopening HID session");
+            ForgetCachedLightAfterReconnect();
+            DropSession();
+            Volatile.Write(ref _appliedWallpaperId, "");
+            Volatile.Write(ref _state, (int)ScreenState.Searching);
+        }
+        _lastKeyboardPresent = present;
+    }
+
     public void RequestReconnect()
     {
         DropSession();
@@ -74,7 +113,9 @@ internal sealed class KeyboardHidController : IDisposable
         lock (_lightSync)
         {
             _appliedLight = null;
+            _pendingLight = null;
             _latestLight = null;
+            Interlocked.Increment(ref _lightGeneration);
         }
     }
 
@@ -201,10 +242,12 @@ internal sealed class KeyboardHidController : IDisposable
         while (!_disposed)
         {
             KeyboardLight? request;
+            int generation;
             lock (_lightSync)
             {
                 request = _pendingLight;
                 _pendingLight = null;
+                generation = _lightGeneration;
             }
 
             if (request == null)
@@ -227,10 +270,25 @@ internal sealed class KeyboardHidController : IDisposable
                 {
                     lock (_lightSync)
                     {
-                        request = _latestLight ?? request;
-                        _pendingLight = null;
+                        if (generation != _lightGeneration)
+                        {
+                            request = null;
+                            _pendingLight = null;
+                        }
+                        else
+                        {
+                            request = _latestLight ?? request;
+                            _pendingLight = null;
+                        }
                     }
+                    if (request == null) continue;
                     DeviceSession session = EnsureSession();
+                    lock (_lightSync)
+                    {
+                        if (generation != _lightGeneration) request = null;
+                        else if (_latestLight is { } latest) request = latest;
+                    }
+                    if (request == null) continue;
                     sinceWrite.Restart();
                     session.SetStaticColor(request.Value.R, request.Value.G, request.Value.B, request.Value.Brightness);
                 }
@@ -294,6 +352,7 @@ internal sealed class KeyboardHidController : IDisposable
             {
                 _appliedLight = KeyboardLightDedupPolicy.AfterSessionOpened();
                 _sessionNeedsLight = true;
+                Interlocked.Increment(ref _lightGeneration);
             }
             _connectRetryAfter = DateTime.MinValue;
             Volatile.Write(ref _state, (int)ScreenState.Connected);

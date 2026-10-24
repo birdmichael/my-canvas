@@ -54,6 +54,11 @@ Check(KeyboardLightDedupPolicy.ShouldApply(staticRed, null, null) &&
 Check(KeyboardLightDedupPolicy.AfterSessionOpened() == null &&
       KeyboardLightDedupPolicy.ShouldApply(staticRed, KeyboardLightDedupPolicy.AfterSessionOpened(), null),
     "a new keyboard HID session restores the last colour after wake");
+string presencePath = Path.Combine(scratch, "UnifyDGDevice.xml");
+File.WriteAllText(presencePath, "<root><device_id key=\"0b051c12\"><status>1</status></device_id></root>");
+Check(KeyboardExternalPresence.IsKeyboardPresent(presencePath), "ROG external keyboard presence is read from the local status file");
+File.WriteAllText(presencePath, "<root><device_id key=\"0b051c12\"><status>255</status></device_id></root>");
+Check(!KeyboardExternalPresence.IsKeyboardPresent(presencePath), "ROG disconnected keyboard status is not treated as present");
 static bool Near(TimeSpan value, double seconds) =>
     Math.Abs(value.TotalSeconds - seconds) < 0.001;
 Check(Near(KeyboardRetryBackoffPolicy.NextDelay(0), 15) &&

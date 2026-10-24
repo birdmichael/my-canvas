@@ -220,6 +220,7 @@ internal sealed class CanvasEngine : IDisposable
     private void Tick()
     {
         DateTime now = DateTime.UtcNow;
+        _keyboard.CheckExternalReconnect();
         string mode = Config.DisplayMode, squareMode = Config.SquareDisplayMode;
         bool needsMusic = Config.LightingEnabled || Config.KeyboardWallpaperSync && Config.KeyboardDisplayMode != "wallpaper" ||
             mode is "music" or "auto" || squareMode is "music" or "auto";
@@ -332,7 +333,10 @@ internal sealed class CanvasEngine : IDisposable
         if (_beatCts != null) return;
         byte caseBrightness = LightingBrightnessPolicy.FromPercent(Volatile.Read(ref _brightness), level);
         byte keyboardBrightness = LightingBrightnessPolicy.FromPercent(Config.KeyboardLightingBrightness, level);
-        if (!CaptureMode) _keyboard.SetLightColor(color.R, color.G, color.B, keyboardBrightness);
+        if (!CaptureMode)
+        {
+            _keyboard.SetLightColor(color.R, color.G, color.B, keyboardBrightness);
+        }
         LightingController.SetColor(color.R, color.G, color.B, caseBrightness);
     }
 
