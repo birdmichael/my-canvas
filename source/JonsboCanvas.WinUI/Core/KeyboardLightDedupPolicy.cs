@@ -10,6 +10,8 @@ internal readonly record struct KeyboardLight(
 // keeps the keyboard HID endpoint active and can prevent its idle sleep.
 internal static class KeyboardLightDedupPolicy
 {
+    internal static KeyboardLight? AfterSessionOpened() => null;
+
     internal static bool ShouldApply(
         KeyboardLight requested,
         KeyboardLight? applied,

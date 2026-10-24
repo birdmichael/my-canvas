@@ -41,6 +41,7 @@ internal sealed class CanvasEngine : IDisposable
     private DateTime _musicAt = DateTime.MinValue;
     private DateTime _lastFrameAt = DateTime.MinValue;
     private DateTime _resumeRecoveryStartedAt = DateTime.MinValue;
+    private int _keyboardSessionGeneration;
     private int _forceFrame;
     private volatile bool _disposed;
     private volatile bool _connectionRequested;
@@ -236,6 +237,15 @@ internal sealed class CanvasEngine : IDisposable
         RefreshMusicLightingColor();
         UpdateBeatLoop(MusicPlaying);
         ApplyLighting(MusicPlaying);
+        // A newly opened keyboard HID session may have restored its cached
+        // default colour. Re-apply the engine's current colour immediately.
+        int sessionGeneration = _keyboard.SessionGeneration;
+        if (sessionGeneration != _keyboardSessionGeneration)
+        {
+            _keyboardSessionGeneration = sessionGeneration;
+            _keyboard.ForgetCachedLightAfterReconnect();
+            ApplyLighting(MusicPlaying);
+        }
         if ((longShown == "hardware" || squareShown == "hardware") &&
             (_metrics == null || (now - _metricsAt).TotalMilliseconds >= Config.RefreshMilliseconds))
         {

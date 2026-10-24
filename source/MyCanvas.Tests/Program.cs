@@ -51,6 +51,9 @@ Check(KeyboardLightDedupPolicy.ShouldApply(staticRed, null, null) &&
       KeyboardLightDedupPolicy.ShouldApply(staticBlue, staticRed, null) &&
       KeyboardLightDedupPolicy.ShouldApply(staticRed, staticRed, staticBlue),
     "unchanged static keyboard lighting is not rewritten and pending changes still apply");
+Check(KeyboardLightDedupPolicy.AfterSessionOpened() == null &&
+      KeyboardLightDedupPolicy.ShouldApply(staticRed, KeyboardLightDedupPolicy.AfterSessionOpened(), null),
+    "a new keyboard HID session restores the last colour after wake");
 static bool Near(TimeSpan value, double seconds) =>
     Math.Abs(value.TotalSeconds - seconds) < 0.001;
 Check(Near(KeyboardRetryBackoffPolicy.NextDelay(0), 15) &&

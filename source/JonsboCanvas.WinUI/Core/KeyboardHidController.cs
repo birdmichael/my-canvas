@@ -41,6 +41,7 @@ internal sealed class KeyboardHidController : IDisposable
     private KeyboardLight? _latestLight;
     private bool _lightWorkerRunning;
     private KeyboardLight? _appliedLight;
+    private bool _sessionNeedsLight;
     private string _appliedWallpaperId = "";
     private DateTime _lastFailureLog;
     private DateTime _lastLightSuccessLog;
@@ -57,6 +58,8 @@ internal sealed class KeyboardHidController : IDisposable
         (Volatile.Read(ref _sessionCount), Volatile.Read(ref _lightWrites),
          Volatile.Read(ref _uploads), Volatile.Read(ref _failures));
     internal int ConsecutiveFailures => Volatile.Read(ref _consecutiveFailures);
+    internal int SessionGeneration => Volatile.Read(ref _sessionCount);
+    internal bool SessionNeedsLight => Volatile.Read(ref _sessionNeedsLight);
 
     public void RequestReconnect()
     {
@@ -64,6 +67,15 @@ internal sealed class KeyboardHidController : IDisposable
         lock (_lightSync) _appliedLight = null;
         Volatile.Write(ref _appliedWallpaperId, "");
         Volatile.Write(ref _state, (int)ScreenState.Searching);
+    }
+
+    internal void ForgetCachedLightAfterReconnect()
+    {
+        lock (_lightSync)
+        {
+            _appliedLight = null;
+            _latestLight = null;
+        }
     }
 
     internal Task<byte[]> ReadStateAsync(byte command, byte subCommand) => Task.Run(() =>
@@ -78,7 +90,8 @@ internal sealed class KeyboardHidController : IDisposable
         var next = new KeyboardLight(r, g, b, percent);
         lock (_lightSync)
         {
-            if (!KeyboardLightDedupPolicy.ShouldApply(next, _appliedLight, _pendingLight)) return;
+            if (!_sessionNeedsLight &&
+                !KeyboardLightDedupPolicy.ShouldApply(next, _appliedLight, _pendingLight)) return;
             _pendingLight = next;
             _latestLight = _pendingLight;
             if (_lightWorkerRunning) return;
@@ -158,7 +171,11 @@ internal sealed class KeyboardHidController : IDisposable
         {
             session.SetStaticColor(latest.R, latest.G, latest.B, latest.Brightness);
             Interlocked.Increment(ref _lightWrites);
-            lock (_lightSync) _appliedLight = latest;
+            lock (_lightSync)
+            {
+                _appliedLight = latest;
+                _sessionNeedsLight = false;
+            }
             _lastLightError = "";
             LogInfo($"lighting restored after OLED upload rgb={latest.R},{latest.G},{latest.B} brightness={latest.Brightness}");
         }
@@ -220,7 +237,11 @@ internal sealed class KeyboardHidController : IDisposable
                 Interlocked.Increment(ref _lightWrites);
                 Volatile.Write(ref _consecutiveFailures, 0);
                 _lastLightError = "";
-                lock (_lightSync) _appliedLight = request;
+                lock (_lightSync)
+                {
+                    _appliedLight = request;
+                    _sessionNeedsLight = false;
+                }
                 if ((DateTime.UtcNow - _lastLightSuccessLog).TotalSeconds >= 10)
                 {
                     _lastLightSuccessLog = DateTime.UtcNow;
@@ -267,6 +288,13 @@ internal sealed class KeyboardHidController : IDisposable
             byte[] animation = _session.ReadState(0x21, 0);
             if (animation[4] != 6) Volatile.Write(ref _appliedWallpaperId, "");
             Interlocked.Increment(ref _sessionCount);
+            // A new HID session can lose the keyboard's volatile RGB state even
+            // when the last requested colour has not changed. Force one rewrite.
+            lock (_lightSync)
+            {
+                _appliedLight = KeyboardLightDedupPolicy.AfterSessionOpened();
+                _sessionNeedsLight = true;
+            }
             _connectRetryAfter = DateTime.MinValue;
             Volatile.Write(ref _state, (int)ScreenState.Connected);
             LogInfo("ROG AZOTH 96 HE HID session opened");
