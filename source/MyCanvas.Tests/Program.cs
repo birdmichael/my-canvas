@@ -65,6 +65,12 @@ Check(Near(KeyboardRetryBackoffPolicy.NextDelay(0), 15) &&
       Near(KeyboardRetryBackoffPolicy.NextDelay(1), 15) &&
       Near(KeyboardRetryBackoffPolicy.NextDelay(20), 300),
     "disconnected keyboard retries back off to one probe every five minutes");
+Check(KeyboardWallpaperWakePolicy.IsWakeTransition(30_000, 0) &&
+      !KeyboardWallpaperWakePolicy.IsWakeTransition(29_999, 0) &&
+      KeyboardWallpaperWakePolicy.NeedsResync("wallpaper:new", "wallpaper:old") &&
+      !KeyboardWallpaperWakePolicy.NeedsResync("wallpaper:same", "wallpaper:same") &&
+      !KeyboardWallpaperWakePolicy.NeedsResync("", ""),
+    "keyboard wake retries only a stale OLED wallpaper and ignores ordinary key activity");
 var resumeNow = new DateTime(2026, 10, 23, 12, 0, 0, DateTimeKind.Utc);
 Check(!DisplayResumePolicy.ShouldRestartDisplay(resumeNow, resumeNow.AddSeconds(2), true, default, false) &&
       DisplayResumePolicy.ShouldRestartDisplay(resumeNow, resumeNow.AddSeconds(6), true, default, false) &&

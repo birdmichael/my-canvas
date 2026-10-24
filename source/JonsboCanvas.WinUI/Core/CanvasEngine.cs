@@ -42,6 +42,8 @@ internal sealed class CanvasEngine : IDisposable
     private DateTime _lastFrameAt = DateTime.MinValue;
     private DateTime _resumeRecoveryStartedAt = DateTime.MinValue;
     private int _keyboardSessionGeneration;
+    private uint _lastUserInputTick;
+    private long _lastUserInputObservedAt = -1;
     private int _forceFrame;
     private volatile bool _disposed;
     private volatile bool _connectionRequested;
@@ -220,6 +222,7 @@ internal sealed class CanvasEngine : IDisposable
     private void Tick()
     {
         DateTime now = DateTime.UtcNow;
+        CheckForKeyboardWakeActivity();
         _keyboard.CheckExternalReconnect();
         string mode = Config.DisplayMode, squareMode = Config.SquareDisplayMode;
         bool needsMusic = Config.LightingEnabled || Config.KeyboardWallpaperSync && Config.KeyboardDisplayMode != "wallpaper" ||
@@ -512,6 +515,32 @@ internal sealed class CanvasEngine : IDisposable
     public bool KeyboardWaitingForCover => KeyboardUsesMusic && !HasKeyboardImage;
     public bool HasKeyboardImage => KeyboardUsesMusic
         ? _music?.Available == true && _music.Cover != null : _wallpaper.Current != null;
+
+    private void CheckForKeyboardWakeActivity()
+    {
+        if (CaptureMode || !UserActivitySignal.TryGetLastInputTick(out uint inputTick)) return;
+        long now = Environment.TickCount64;
+        bool hasBaseline = _lastUserInputObservedAt >= 0;
+        if (hasBaseline && inputTick == _lastUserInputTick) return;
+
+        long previousInputAt = _lastUserInputObservedAt;
+        _lastUserInputTick = inputTick;
+        _lastUserInputObservedAt = now;
+        if (!hasBaseline ||
+            !KeyboardWallpaperWakePolicy.IsWakeTransition(now, previousInputAt) ||
+            !Config.KeyboardWallpaperSync)
+            return;
+
+        var content = KeyboardDisplay.SelectContent(KeyboardUsesMusic, _music, _wallpaper.Current);
+        if (content is not { } current ||
+            !KeyboardWallpaperWakePolicy.NeedsResync(current.Id, _keyboard.AppliedWallpaperId))
+            return;
+
+        _keyboard.ResetRetryBackoff();
+        _keyboardWallpaperRequestedId = "";
+        _keyboardWallpaperRetryAt = DateTime.MinValue;
+        Log.Write("Keyboard activity detected; retrying pending OLED wallpaper");
+    }
 
     private DrawingBitmap RenderKeyboardFrame()
     {

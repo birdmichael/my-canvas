@@ -32,6 +32,7 @@
     <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardHidController.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardLightDedupPolicy.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardRetryBackoffPolicy.cs" />
+    <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardWallpaperWakePolicy.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/KeyboardExternalPresence.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/CaseLightDedupPolicy.cs" />
     <Compile Include="../JonsboCanvas.WinUI/Core/CanvasDeviceModel.cs" />

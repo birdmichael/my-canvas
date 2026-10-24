@@ -119,6 +119,8 @@ internal sealed class KeyboardHidController : IDisposable
         }
     }
 
+    internal void ResetRetryBackoff() => Volatile.Write(ref _consecutiveFailures, 0);
+
     internal Task<byte[]> ReadStateAsync(byte command, byte subCommand) => Task.Run(() =>
     {
         lock (_deviceSync) return EnsureSession().ReadState(command, subCommand);
@@ -343,8 +345,11 @@ internal sealed class KeyboardHidController : IDisposable
         {
             Volatile.Write(ref _state, (int)ScreenState.Searching);
             _session = DeviceSession.Open();
-            byte[] animation = _session.ReadState(0x21, 0);
-            if (animation[4] != 6) Volatile.Write(ref _appliedWallpaperId, "");
+            _session.ReadState(0x21, 0);
+            // Custom-image mode does not identify which image is on the OLED.
+            // A new session therefore cannot prove that the cached wallpaper is
+            // still current, so always let the engine restore it.
+            Volatile.Write(ref _appliedWallpaperId, "");
             Interlocked.Increment(ref _sessionCount);
             // A new HID session can lose the keyboard's volatile RGB state even
             // when the last requested colour has not changed. Force one rewrite.

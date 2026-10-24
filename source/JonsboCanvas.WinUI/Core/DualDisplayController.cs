@@ -54,66 +54,82 @@ internal sealed class DualDisplayController : IDisposable
         return result == 0 || _long.WaitConnected(TimeSpan.FromSeconds(2)) ? 0 : result;
     }
 
-    private readonly object _mailSync = new();
-    private readonly AutoResetEvent _mailWake = new(false);
-    private (Bitmap Long, Bitmap Square, string LongMode, string SquareMode)? _mail;
-    private Thread? _sender;
+    private readonly FrameMailbox _longMail = new();
+    private readonly FrameMailbox _squareMail = new();
+    private Thread? _longSender;
+    private Thread? _squareSender;
     private volatile bool _disposed;
-    private long _sendStartedTicks;
-    private bool _stallLogged;
+    private long _longSendStartedTicks;
+    private long _squareSendStartedTicks;
+    private bool _longStallLogged;
+    private bool _squareStallLogged;
 
-    // Takes ownership of both frames and returns at once; a screen whose driver
-    // stops answering only stalls the display thread. Frames that pile up
-    // meanwhile are dropped, keeping the newest.
+    // Takes ownership of both frames and returns at once. Each screen has its
+    // own sender so a slow serial write cannot delay the USB display.
     public void Post(Bitmap longFrame, Bitmap squareFrame, string longMode, string squareMode)
     {
         if (_disposed) { longFrame.Dispose(); squareFrame.Dispose(); return; }
-        var mail = (longFrame, squareFrame, longMode, squareMode);
-        (Bitmap Long, Bitmap Square, string, string)? dropped;
-        lock (_mailSync)
+        if (_longMail.Post(new ScreenFrame(longFrame, longMode)))
         {
-            dropped = _mail;
-            _mail = mail;
-            if (_sender == null)
-            {
-                _sender = new Thread(SendLoop) { IsBackground = true, Name = "Screen sender" };
-                _sender.Start();
-            }
+            _longSender = new Thread(LongSendLoop) { IsBackground = true, Name = "Long screen sender" };
+            _longSender.Start();
         }
-        dropped?.Long.Dispose();
-        dropped?.Square.Dispose();
-        _mailWake.Set();
-
-        long started = Interlocked.Read(ref _sendStartedTicks);
-        if (started != 0 && !_stallLogged && DateTime.UtcNow.Ticks - started > TimeSpan.FromSeconds(15).Ticks)
+        if (_squareMail.Post(new ScreenFrame(squareFrame, squareMode)))
         {
-            _stallLogged = true;
-            Log.Write("Screen driver has not returned for 15 s; frames are being dropped until it does.");
+            _squareSender = new Thread(SquareSendLoop) { IsBackground = true, Name = "Square screen sender" };
+            _squareSender.Start();
+        }
+        CheckStall(ref _longSendStartedTicks, ref _longStallLogged, "Long screen");
+        CheckStall(ref _squareSendStartedTicks, ref _squareStallLogged, "Square screen");
+    }
+
+    private static void CheckStall(ref long startedTicks, ref bool logged, string name)
+    {
+        long started = Interlocked.Read(ref startedTicks);
+        if (started != 0 && !logged && DateTime.UtcNow.Ticks - started > TimeSpan.FromSeconds(15).Ticks)
+        {
+            logged = true;
+            Log.Write(name + " driver has not returned for 15 s; frames are being dropped until it does.");
         }
     }
 
-    private void SendLoop()
+    private void LongSendLoop()
     {
         while (!_disposed)
         {
-            _mailWake.WaitOne(1000);
-            (Bitmap Long, Bitmap Square, string LongMode, string SquareMode)? mail;
-            lock (_mailSync) { mail = _mail; _mail = null; }
-            if (mail is not { } frame) continue;
-            Interlocked.Exchange(ref _sendStartedTicks, DateTime.UtcNow.Ticks);
-            try { Send(frame.Long, frame.Square, frame.LongMode, frame.SquareMode); }
-            catch (Exception error) { Log.Write("Screen send failed: " + error.Message); }
+            ScreenFrame? frame = _longMail.Take();
+            if (frame is not { } current) return;
+            Interlocked.Exchange(ref _longSendStartedTicks, DateTime.UtcNow.Ticks);
+            try { SendLong(current); }
+            catch (Exception error) { Log.Write("Long screen send failed: " + error.Message); }
             finally
             {
-                Interlocked.Exchange(ref _sendStartedTicks, 0);
-                if (_stallLogged) { _stallLogged = false; Log.Write("Screen driver answered again."); }
-                frame.Long.Dispose();
-                frame.Square.Dispose();
+                Interlocked.Exchange(ref _longSendStartedTicks, 0);
+                if (_longStallLogged) { _longStallLogged = false; Log.Write("Long screen driver answered again."); }
+                current.Bitmap.Dispose();
             }
         }
     }
 
-    private void Send(Bitmap longFrame, Bitmap squareFrame, string longMode, string squareMode)
+    private void SquareSendLoop()
+    {
+        while (!_disposed)
+        {
+            ScreenFrame? frame = _squareMail.Take();
+            if (frame is not { } current) return;
+            Interlocked.Exchange(ref _squareSendStartedTicks, DateTime.UtcNow.Ticks);
+            try { SendSquare(current); }
+            catch (Exception error) { Log.Write("Square screen send failed: " + error.Message); }
+            finally
+            {
+                Interlocked.Exchange(ref _squareSendStartedTicks, 0);
+                if (_squareStallLogged) { _squareStallLogged = false; Log.Write("Square screen driver answered again."); }
+                current.Bitmap.Dispose();
+            }
+        }
+    }
+
+    private void SendLong(ScreenFrame frame)
     {
         lock (_sync)
         {
@@ -125,18 +141,17 @@ internal sealed class DualDisplayController : IDisposable
         }
         // The serial screen is capped independently so a fast music page on the USB screen
         // does not flood its JPEG transport. Each screen retains its own cadence.
-        double longInterval = longMode == "music"
+        double longInterval = frame.Mode == "music"
             ? FrameSendPolicy.LongMusicIntervalMilliseconds(_longSendMilliseconds)
             : _config.RefreshMilliseconds;
-        double squareInterval = squareMode == "music" ? Math.Max(50, 1000 / _config.MusicFrameRate) : squareMode == "clock" ? 1000 : _config.RefreshMilliseconds;
         if (_long.Connected && (now - _lastLongSend).TotalMilliseconds >= longInterval)
         {
             _lastLongSend = now;
-            ulong signature = Signature(longFrame);
+            ulong signature = Signature(frame.Bitmap);
             bool changed = !_hasLongSignature || signature != _longSignature;
             if (FrameSendPolicy.ShouldSend(changed, _lastLongSent, now))
             {
-                if (_long.Post(longFrame, _config.LongRotationDegrees))
+                if (_long.Post(frame.Bitmap, _config.LongRotationDegrees))
                 {
                     _longSendMilliseconds = _long.WriteMilliseconds;
                     _longSignature = signature;
@@ -147,13 +162,22 @@ internal sealed class DualDisplayController : IDisposable
                 }
             }
         }
+        }
+    }
+
+    private void SendSquare(ScreenFrame frame)
+    {
+        lock (_sync)
+        {
+        DateTime now = DateTime.UtcNow;
+        double squareInterval = frame.Mode == "music" ? Math.Max(50, 1000 / _config.MusicFrameRate) : frame.Mode == "clock" ? 1000 : _config.RefreshMilliseconds;
         if (_square.Connected && (now - _lastSquareSend).TotalMilliseconds >= squareInterval)
         {
             _lastSquareSend = now;
-            ulong signature = Signature(squareFrame);
+            ulong signature = Signature(frame.Bitmap);
             bool changed = !_hasSquareSignature || signature != _squareSignature;
             if (!FrameSendPolicy.ShouldSend(changed, _lastSquareSent, now)) return;
-            int result = _square.Send(squareFrame, _config.SquareRotationDegrees);
+            int result = _square.Send(frame.Bitmap, _config.SquareRotationDegrees);
             if (result == 0)
             {
                 _squareSignature = signature;
@@ -180,10 +204,59 @@ internal sealed class DualDisplayController : IDisposable
     public void Dispose()
     {
         _disposed = true;
-        _mailWake.Set();
+        _longMail.Stop();
+        _squareMail.Stop();
         Stop();
         _square.Dispose();
         _long.Dispose();
+    }
+
+    private sealed record ScreenFrame(Bitmap Bitmap, string Mode);
+
+    private sealed class FrameMailbox
+    {
+        private readonly object _sync = new();
+        private readonly AutoResetEvent _wake = new(false);
+        private ScreenFrame? _frame;
+        private bool _running;
+        private bool _stopped;
+
+        // Returns true when the caller must start the sender thread.
+        public bool Post(ScreenFrame frame)
+        {
+            lock (_sync)
+            {
+                if (_stopped) { frame.Bitmap.Dispose(); return false; }
+                Interlocked.Exchange(ref _frame, frame)?.Bitmap.Dispose();
+                _wake.Set();
+                if (_running) return false;
+                _running = true;
+                return true;
+            }
+        }
+
+        public ScreenFrame? Take()
+        {
+            _wake.WaitOne(1000);
+            lock (_sync)
+            {
+                if (_stopped) return null;
+                ScreenFrame? frame = Interlocked.Exchange(ref _frame, null);
+                if (frame != null) return frame;
+                _running = false;
+                return null;
+            }
+        }
+
+        public void Stop()
+        {
+            lock (_sync)
+            {
+                _stopped = true;
+                Interlocked.Exchange(ref _frame, null)?.Bitmap.Dispose();
+                _wake.Set();
+            }
+        }
     }
 
     internal static unsafe ulong Signature(Bitmap frame)
