@@ -5,6 +5,24 @@ internal static class KeyboardWakeTests
 {
     public static async Task RunAsync(Action<bool, string> check)
     {
+        KeyboardActivitySignal activity = new(0);
+        check(!KeyboardActivitySignal.IsTargetKeyboard(0, @"HID\VID_0B05&PID_1AD0") &&
+              !KeyboardActivitySignal.IsTargetKeyboard(1, @"HID\VID_1234&PID_5678") &&
+              KeyboardActivitySignal.IsTargetKeyboard(1, @"\\?\hid#vid_0b05&pid_1ad0&mi_00#keyboard"),
+            "mouse and unrelated devices cannot wake the keyboard lighting");
+        check(!activity.IsIdle(29_999) && activity.IsIdle(30_000),
+            "startup grace expires without keyboard activity");
+        activity.RecordKeyboardInput(31_000);
+        check(activity.TryTakeActivity(out bool woke) && woke &&
+              !activity.TryTakeActivity(out _) && !activity.IsIdle(31_001),
+            "a real keyboard wake is consumed once");
+        activity.RecordKeyboardInput(32_000);
+        check(activity.TryTakeActivity(out woke) && !woke && activity.IsIdle(62_000),
+            "ordinary typing can resume a failed request without repeated wake restores");
+        activity.RecordReconnect(65_000);
+        check(!activity.TryTakeActivity(out _) && !activity.IsIdle(94_999) && activity.IsIdle(95_000),
+            "a real reconnect grants bounded setup time without fabricating keyboard input");
+
         FakeKeyboard device = new();
         using KeyboardHidController keyboard = new(() => device, TimeSpan.FromMilliseconds(50));
         KeyboardLight desired = new(20, 110, 230, 50);
@@ -67,6 +85,43 @@ internal static class KeyboardWakeTests
 
         check(!KeyboardLightDedupPolicy.MatchesReadback(desired, new byte[5]),
             "truncated lighting readback cannot be mistaken for a successful restore");
+
+        await Until(() => !keyboard.SessionNeedsLight);
+        keyboard.SuspendUntilActivity();
+        await Task.Delay(100);
+        writes = device.Writes;
+        reads = device.LightingReads;
+        int uploads = device.Uploads;
+        KeyboardLight next = new(0, 130, 255, 50);
+        for (int i = 0; i < 20; i++) keyboard.SetLightColor(next.R, next.G, next.B, 128);
+        bool uploadedWhileIdle = await keyboard.ApplyWallpaperAsync(new byte[KeyboardDisplay.PayloadLength], "new-idle-image");
+        await Task.Delay(200);
+        check(keyboard.WaitingForActivity && !uploadedWhileIdle &&
+              device.Writes == writes && device.LightingReads == reads && device.Uploads == uploads,
+            "idle suppresses lighting, verification, and OLED transfers while keeping the latest desired state");
+        keyboard.NotifyWake();
+        await Until(() => device.Light == next);
+        check(!keyboard.WaitingForActivity,
+            "real activity restores the latest colour accumulated during idle");
+
+        device.FailWrites = true;
+        keyboard.SetLightColor(5, 6, 7, 128);
+        await Until(() => keyboard.WaitingForActivity);
+        int failedAttempts = device.WriteAttempts;
+        keyboard.SetLightColor(8, 9, 10, 128);
+        await keyboard.ApplyWallpaperAsync(new byte[KeyboardDisplay.PayloadLength], "sleeping-image");
+        await Task.Delay(250);
+        check(device.WriteAttempts == failedAttempts,
+            "a sleeping or rejecting keyboard is not probed again without activity");
+
+        string unknownPresence = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(unknownPresence, "<root>");
+            check(!KeyboardExternalPresence.TryGetKeyboardPresence(out _, unknownPresence),
+                "a partially written presence file is unknown rather than a disconnect");
+        }
+        finally { File.Delete(unknownPresence); }
     }
 
     private static async Task Until(Func<bool> condition)
@@ -84,13 +139,14 @@ internal static class KeyboardWakeTests
     {
         private readonly object _sync = new();
         private KeyboardLight _light = new(255, 0, 0, 100);
-        private int _writes, _reads, _uploads;
+        private int _writes, _reads, _uploads, _writeAttempts;
         public volatile bool FailWrites;
         public volatile bool ResetOnNextLightingRead;
         public KeyboardLight Light { get { lock (_sync) return _light; } }
         public int Writes => Volatile.Read(ref _writes);
         public int LightingReads => Volatile.Read(ref _reads);
         public int Uploads => Volatile.Read(ref _uploads);
+        public int WriteAttempts => Volatile.Read(ref _writeAttempts);
 
         public void ResetToRed() { lock (_sync) _light = new(255, 0, 0, 100); }
         public byte[] ReadState(byte command, byte subCommand)
@@ -115,6 +171,7 @@ internal static class KeyboardWakeTests
 
         public void SetStaticColor(byte r, byte g, byte b, byte brightness)
         {
+            Interlocked.Increment(ref _writeAttempts);
             if (FailWrites) throw new IOException("Simulated sleeping keyboard");
             lock (_sync) _light = new(r, g, b, brightness);
             Interlocked.Increment(ref _writes);

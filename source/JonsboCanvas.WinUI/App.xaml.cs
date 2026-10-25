@@ -102,6 +102,7 @@ public partial class App : Application
                 _tray = new TrayIconController(AppAssetPaths.IconPath(AppContext.BaseDirectory), Localization.Get("Tray.Tooltip"));
                 _tray.OpenRequested += ShowWindow;
                 _tray.ExitRequested += ExitApp;
+                _tray.KeyboardActivity += Engine.RecordKeyboardActivity;
             }
             catch (Exception exception)
             {

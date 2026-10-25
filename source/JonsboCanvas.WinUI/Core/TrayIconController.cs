@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Text;
+using JonsboCanvas;
 
 namespace JonsboCanvas_WinUI;
 
@@ -41,9 +43,13 @@ internal sealed class TrayIconController : IDisposable
     private string _tooltip;
     private IntPtr _iconHandle;
     private bool _disposed;
+    private readonly Dictionary<IntPtr, bool> _rawKeyboards = new();
+    private bool _rawInputRegistered;
+    private bool _keyboardInputObserved;
 
     internal event Action? OpenRequested;
     internal event Action? ExitRequested;
+    internal event Action? KeyboardActivity;
 
     internal TrayIconController(string iconPath, string tooltip)
     {
@@ -75,6 +81,11 @@ internal sealed class TrayIconController : IDisposable
             throw new InvalidOperationException("Unable to load tray icon: " + iconPath);
 
         AddIcon();
+        RawInputDevice[] keyboardInput = { new() { UsagePage = 1, Usage = 6, Flags = 0x2100, Target = _windowHandle } };
+        _rawInputRegistered = RegisterRawInputDevices(keyboardInput, 1, (uint)Marshal.SizeOf<RawInputDevice>());
+        Log.Write(_rawInputRegistered
+            ? "ROG keyboard activity tracking enabled (device-filtered raw input)"
+            : "Unable to register keyboard activity tracking: " + Marshal.GetLastWin32Error());
     }
 
     internal void ShowInfo(string title, string message)
@@ -136,6 +147,17 @@ internal sealed class TrayIconController : IDisposable
 
     private bool HandleWindowMessage(uint message, IntPtr lParam)
     {
+        if (message == 0x00FF) // WM_INPUT
+        {
+            ObserveKeyboardInput(lParam);
+            // DefWindowProc must still clean up foreground raw-input messages.
+            return false;
+        }
+        if (message == 0x00FE) // WM_INPUT_DEVICE_CHANGE
+        {
+            _rawKeyboards.Remove(lParam);
+            return false;
+        }
         if (message == _taskbarCreatedMessage)
         {
             AddIcon();
@@ -157,6 +179,32 @@ internal sealed class TrayIconController : IDisposable
         else if (mouseMessage is RightButtonUp or ContextMenu)
             ShowContextMenu();
         return true;
+    }
+
+    private void ObserveKeyboardInput(IntPtr input)
+    {
+        uint size = (uint)Marshal.SizeOf<RawInputHeader>();
+        if (GetRawInputData(input, 0x10000005, out RawInputHeader header, ref size, size) == uint.MaxValue ||
+            header.Type != 1 || header.Device == IntPtr.Zero) return;
+        if (!_rawKeyboards.TryGetValue(header.Device, out bool target))
+        {
+            uint length = 0;
+            if (GetRawInputDeviceInfo(header.Device, 0x20000007, IntPtr.Zero, ref length) == uint.MaxValue ||
+                length == 0 || length > 4096) return;
+            StringBuilder name = new((int)length);
+            if (GetRawInputDeviceName(header.Device, 0x20000007, name, ref length) == uint.MaxValue) return;
+            target = KeyboardActivitySignal.IsTargetKeyboard(header.Type, name.ToString());
+            _rawKeyboards[header.Device] = target;
+        }
+        if (target)
+        {
+            if (!_keyboardInputObserved)
+            {
+                _keyboardInputObserved = true;
+                Log.Write("ROG keyboard raw input received");
+            }
+            KeyboardActivity?.Invoke();
+        }
     }
 
     private void ShowContextMenu()
@@ -196,6 +244,11 @@ internal sealed class TrayIconController : IDisposable
         if (_disposed)
             return;
         _disposed = true;
+        if (_rawInputRegistered)
+        {
+            RawInputDevice[] remove = { new() { UsagePage = 1, Usage = 6, Flags = 1 } };
+            RegisterRawInputDevices(remove, 1, (uint)Marshal.SizeOf<RawInputDevice>());
+        }
 
         NotifyIconData data = CreateData();
         ShellNotifyIcon(NotifyDelete, ref data);
@@ -252,6 +305,34 @@ internal sealed class TrayIconController : IDisposable
     }
 
     private delegate IntPtr WindowProcedure(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RawInputDevice
+    {
+        internal ushort UsagePage, Usage;
+        internal uint Flags;
+        internal IntPtr Target;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RawInputHeader
+    {
+        internal uint Type, Size;
+        internal IntPtr Device, WParam;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool RegisterRawInputDevices(RawInputDevice[] devices, uint count, uint size);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetRawInputData(IntPtr input, uint command, out RawInputHeader data, ref uint size, uint headerSize);
+
+    [DllImport("user32.dll", EntryPoint = "GetRawInputDeviceInfoW")]
+    private static extern uint GetRawInputDeviceInfo(IntPtr device, uint command, IntPtr data, ref uint size);
+
+    [DllImport("user32.dll", EntryPoint = "GetRawInputDeviceInfoW", CharSet = CharSet.Unicode)]
+    private static extern uint GetRawInputDeviceName(IntPtr device, uint command, StringBuilder data, ref uint size);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, EntryPoint = "Shell_NotifyIconW")]
     [return: MarshalAs(UnmanagedType.Bool)]

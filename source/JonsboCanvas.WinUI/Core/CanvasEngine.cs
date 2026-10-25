@@ -41,8 +41,7 @@ internal sealed class CanvasEngine : IDisposable
     private DateTime _musicAt = DateTime.MinValue;
     private DateTime _lastFrameAt = DateTime.MinValue;
     private DateTime _resumeRecoveryStartedAt = DateTime.MinValue;
-    private uint _lastUserInputTick;
-    private long _lastUserInputObservedAt = -1;
+    private readonly KeyboardActivitySignal _keyboardActivity = new(Environment.TickCount64);
     private int _forceFrame;
     private volatile bool _disposed;
     private volatile bool _connectionRequested;
@@ -183,9 +182,6 @@ internal sealed class CanvasEngine : IDisposable
             }
 
             DateTime now = DateTime.UtcNow;
-            if (!CaptureMode && DisplayResumePolicy.ShouldRestartDisplay(
-                    lastLoop, now, connectionRequested: true))
-                _keyboard.NotifyWake();
             bool screensConnected = _display.Connected;
             if (DisplayResumePolicy.ShouldRestartDisplay(
                     lastLoop, now, _connectionRequested, _resumeRecoveryStartedAt, screensConnected))
@@ -227,7 +223,8 @@ internal sealed class CanvasEngine : IDisposable
     {
         DateTime now = DateTime.UtcNow;
         CheckForKeyboardWakeActivity();
-        _keyboard.CheckExternalReconnect();
+        if (_keyboard.CheckExternalReconnect())
+            _keyboardActivity.RecordReconnect(Environment.TickCount64);
         string mode = Config.DisplayMode, squareMode = Config.SquareDisplayMode;
         bool needsMusic = Config.LightingEnabled || Config.KeyboardWallpaperSync && Config.KeyboardDisplayMode != "wallpaper" ||
             mode is "music" or "auto" || squareMode is "music" or "auto";
@@ -479,12 +476,14 @@ internal sealed class CanvasEngine : IDisposable
     public void SetKeyboardBrightness(int value)
     {
         Config.KeyboardLightingBrightness = Math.Clamp(value, 0, 100);
+        RecordKeyboardActivity();
         Run(() => ApplyLighting(MusicPlaying));
     }
 
     // Applies lighting settings already written to Config.
     public void LightingChanged(bool coverChanged = false, bool beatChanged = false)
     {
+        RecordKeyboardActivity();
         SaveConfig();
         Run(() =>
         {
@@ -513,20 +512,17 @@ internal sealed class CanvasEngine : IDisposable
 
     private void CheckForKeyboardWakeActivity()
     {
-        if (CaptureMode || !UserActivitySignal.TryGetLastInputTick(out uint inputTick)) return;
-        long now = Environment.TickCount64;
-        bool hasBaseline = _lastUserInputObservedAt >= 0;
-        if (hasBaseline && inputTick == _lastUserInputTick) return;
-
-        long previousInputAt = _lastUserInputObservedAt;
-        _lastUserInputTick = inputTick;
-        _lastUserInputObservedAt = now;
-        if (!hasBaseline ||
-            !KeyboardWallpaperWakePolicy.IsWakeTransition(now, previousInputAt))
+        if (CaptureMode) return;
+        bool activity = _keyboardActivity.TryTakeActivity(out bool afterIdle);
+        if (_keyboardActivity.IsIdle(Environment.TickCount64))
+        {
+            _keyboard.SuspendUntilActivity();
             return;
+        }
+        if (!activity || !afterIdle && !_keyboard.WaitingForActivity) return;
 
         _keyboard.NotifyWake();
-        Log.Write("Keyboard activity after idle; restoring and verifying current lighting");
+        Log.Write("ROG keyboard input after idle; restoring and verifying current lighting");
         if (!Config.KeyboardWallpaperSync) return;
 
         var content = KeyboardDisplay.SelectContent(KeyboardUsesMusic, _music, _wallpaper.Current);
@@ -539,6 +535,9 @@ internal sealed class CanvasEngine : IDisposable
         _keyboardWallpaperRetryAt = DateTime.MinValue;
         Log.Write("Keyboard activity detected; retrying pending OLED wallpaper");
     }
+
+    internal void RecordKeyboardActivity() =>
+        _keyboardActivity.RecordKeyboardInput(Environment.TickCount64);
 
     private DrawingBitmap RenderKeyboardFrame()
     {
@@ -557,7 +556,7 @@ internal sealed class CanvasEngine : IDisposable
 
     private void SyncKeyboardWallpaper()
     {
-        if (CaptureMode || !Config.KeyboardWallpaperSync) return;
+        if (CaptureMode || !Config.KeyboardWallpaperSync || _keyboard.WaitingForActivity) return;
         var content = KeyboardDisplay.SelectContent(KeyboardUsesMusic, _music, _wallpaper.Current);
         if (content is not { } current) return;
         string id = current.Id;
@@ -592,6 +591,7 @@ internal sealed class CanvasEngine : IDisposable
     public async Task<bool> ApplyKeyboardWallpaperAsync(bool force = false)
     {
         if (CaptureMode) return false;
+        if (force) RecordKeyboardActivity();
         try
         {
             // Image ownership stays on the render thread, which also releases
@@ -614,6 +614,7 @@ internal sealed class CanvasEngine : IDisposable
 
     public void SetKeyboardWallpaperSync(bool enabled)
     {
+        if (enabled) RecordKeyboardActivity();
         Config.KeyboardWallpaperSync = enabled;
         _keyboardWallpaperRequestedId = "";
         _keyboardWallpaperRetryAt = DateTime.MinValue;
@@ -623,6 +624,7 @@ internal sealed class CanvasEngine : IDisposable
 
     public void SetKeyboardDisplayMode(string mode)
     {
+        RecordKeyboardActivity();
         Config.KeyboardDisplayMode = mode is "wallpaper" or "music" ? mode : "auto";
         _keyboardWallpaperRequestedId = "";
         _keyboardWallpaperRetryAt = DateTime.MinValue;
@@ -633,6 +635,7 @@ internal sealed class CanvasEngine : IDisposable
     public void ReconnectKeyboard()
     {
         if (CaptureMode) return;
+        RecordKeyboardActivity();
         // Closing a HID session may wait for I/O; never do it on the UI thread.
         _ = Task.Run(() =>
         {

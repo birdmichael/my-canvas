@@ -9,15 +9,20 @@ internal static class KeyboardExternalPresence
     internal const string DefaultPath = @"C:\ProgramData\ASUS\ROG Live Service\UnifyDGDevice.xml";
 
     internal static bool IsKeyboardPresent(string path = DefaultPath)
+        => TryGetKeyboardPresence(out bool present, path) && present;
+
+    internal static bool TryGetKeyboardPresence(out bool present, string path = DefaultPath)
     {
+        present = false;
         try
         {
             if (!File.Exists(path)) return false;
             XDocument document = XDocument.Load(path);
-            return document.Descendants("device_id")
+            present = document.Descendants("device_id")
                 .Where(element => string.Equals((string?)element.Attribute("key"), "0b051c12", StringComparison.OrdinalIgnoreCase))
                 .Select(element => (string?)element.Element("status"))
                 .Any(value => value == "1");
+            return true;
         }
         catch
         {
