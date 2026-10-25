@@ -140,6 +140,42 @@ internal static class LegacyJsonSerializerTests
                 schedulerTick + TimeSpan.FromHours(1),
                 connectionRequested: false),
             "a manually disconnected display must stay disconnected after resume");
+        foreach (bool? connected in new bool?[] { null, false, true })
+        {
+            string state = connected?.ToString() ?? "unknown";
+            Assert(DisplayResumePolicy.ShouldRestartDisplay(
+                    schedulerTick, schedulerTick + DisplayResumePolicy.MinimumSuspendGap,
+                    connectionRequested: true, screensConnected: connected) == (connected != true),
+                $"only a confirmed online display suppresses gap recovery ({state})");
+            Assert(!DisplayResumePolicy.ShouldRestartDisplay(
+                    schedulerTick, schedulerTick + DisplayResumePolicy.MinimumSuspendGap - TimeSpan.FromTicks(1),
+                    connectionRequested: true, screensConnected: connected),
+                $"a delay below the suspend threshold never restarts the display ({state})");
+            Assert(!DisplayResumePolicy.ShouldRestartDisplay(
+                    schedulerTick, schedulerTick + DisplayResumePolicy.RecoveryCooldown - TimeSpan.FromTicks(1),
+                    connectionRequested: true, recoveryStartedUtc: schedulerTick, screensConnected: connected),
+                $"repeated recovery waits for the full cooldown ({state})");
+            Assert(DisplayResumePolicy.ShouldRestartDisplay(
+                    schedulerTick, schedulerTick + DisplayResumePolicy.RecoveryCooldown,
+                    connectionRequested: true, recoveryStartedUtc: schedulerTick, screensConnected: connected)
+                    == (connected != true),
+                $"recovery can resume exactly at the cooldown boundary ({state})");
+            Assert(!DisplayResumePolicy.ShouldRestartDisplay(
+                    DateTime.MinValue, schedulerTick,
+                    connectionRequested: true, screensConnected: connected),
+                $"the first scheduler tick cannot be mistaken for resume ({state})");
+            Assert(!DisplayResumePolicy.ShouldRestartDisplay(
+                    schedulerTick, schedulerTick,
+                    connectionRequested: true, screensConnected: connected) &&
+                !DisplayResumePolicy.ShouldRestartDisplay(
+                    schedulerTick, schedulerTick - TimeSpan.FromHours(1),
+                    connectionRequested: true, screensConnected: connected),
+                $"an unchanged or backward clock cannot trigger recovery ({state})");
+            Assert(!DisplayResumePolicy.ShouldRestartDisplay(
+                    schedulerTick, schedulerTick + TimeSpan.FromHours(1),
+                    connectionRequested: false, screensConnected: connected),
+                $"manual disconnection overrides every connectivity state ({state})");
+        }
         Assert(AppLanguage.Normalize("en-GB") == "en-US",
             "English locale variants must normalize to the supported English language");
         Assert(AppLanguage.Normalize("zh-Hans") == "zh-CN",
