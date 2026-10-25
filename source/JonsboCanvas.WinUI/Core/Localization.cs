@@ -71,7 +71,7 @@ public static class Localization
         ["Wallpaper.KeyboardSection"] = "ROG 键盘小屏",
         ["Wallpaper.Keyboard"] = "同步键盘小屏", ["Wallpaper.Keyboard.Hint"] = "音乐模式跟随当前专辑封面，其他模式跟随 MyCanvas 壁纸；直接写入键盘。",
         ["Wallpaper.Keyboard.Apply"] = "立即同步", ["Wallpaper.Keyboard.NeedImage"] = "先选择一张有图片的壁纸",
-        ["Wallpaper.Keyboard.Applied"] = "键盘小屏已同步", ["Wallpaper.Keyboard.Failed"] = "键盘小屏同步失败；请确认键盘已连接，且 Armoury Crate / Gear Link 未占用设备",
+        ["Wallpaper.Keyboard.Applied"] = "键盘小屏已同步", ["Wallpaper.Keyboard.Failed"] = "键盘小屏同步失败；请按键唤醒或重新连接键盘，并确认 Armoury Crate / Gear Link 未占用设备",
         ["Source.bing"] = "必应每日", ["Source.wallhaven"] = "精选风景", ["Source.custom"] = "自定义",
 
         ["Lighting.Title"] = "灯光", ["Lighting.Subtitle"] = "机箱 ARGB 与 ROG 键盘使用同一颜色、亮度和音乐节奏。",
@@ -193,7 +193,7 @@ public static class Localization
         ["Wallpaper.KeyboardSection"] = "ROG keyboard display",
         ["Wallpaper.Keyboard"] = "Sync keyboard display", ["Wallpaper.Keyboard.Hint"] = "Music mode follows the current album cover; other modes follow the MyCanvas wallpaper. Written directly to the keyboard.",
         ["Wallpaper.Keyboard.Apply"] = "Sync now", ["Wallpaper.Keyboard.NeedImage"] = "Choose a picture first",
-        ["Wallpaper.Keyboard.Applied"] = "Keyboard display synced", ["Wallpaper.Keyboard.Failed"] = "Keyboard display sync failed; make sure the keyboard is connected and Armoury Crate / Gear Link is not holding the device",
+        ["Wallpaper.Keyboard.Applied"] = "Keyboard display synced", ["Wallpaper.Keyboard.Failed"] = "Keyboard display sync failed; wake or reconnect the keyboard and make sure Armoury Crate / Gear Link is not holding the device",
         ["Source.bing"] = "Bing daily", ["Source.wallhaven"] = "Scenery", ["Source.custom"] = "Custom",
 
         ["Lighting.Title"] = "Lighting", ["Lighting.Subtitle"] = "The case ARGB and ROG keyboard share one colour, brightness and music rhythm.",

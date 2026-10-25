@@ -22,6 +22,46 @@ internal static class KeyboardWakeTests
         activity.RecordReconnect(65_000);
         check(!activity.TryTakeActivity(out _) && !activity.IsIdle(94_999) && activity.IsIdle(95_000),
             "a real reconnect grants bounded setup time without fabricating keyboard input");
+        KeyboardWallpaperSyncRequest manualWallpaper = new();
+        check(KeyboardDisplay.ContentKey(null) == "",
+            "a wallpaper request can wait safely while no image is loaded");
+        check(!manualWallpaper.TryTake("automatic-image", false, false, 100_000),
+            "automatic wallpaper rotation cannot bypass keyboard idle");
+        manualWallpaper.Request("old-image", 100_000);
+        check(!manualWallpaper.TryTake("new-image", true, false, 140_000) &&
+              manualWallpaper.TryTake("new-image", false, false, 140_001) &&
+              !manualWallpaper.TryTake("new-image", false, false, 140_002),
+            "a manual download finishing after the idle timeout grants exactly one sync");
+        manualWallpaper.Request("old-image", 0);
+        check(!manualWallpaper.TryTake("old-image", true, false, 180_000) &&
+              manualWallpaper.TryTake("slow-image", false, false, 180_001),
+            "an active slow download keeps its manual sync request until completion");
+        activity.RecordExplicitAction(140_001);
+        check(!activity.IsIdle(140_002) && activity.IsIdle(170_001) && !activity.TryTakeActivity(out _),
+            "manual sync grants a fresh bounded activity window without repeated wake notifications");
+        manualWallpaper.Request("old-image", 180_000);
+        check(!manualWallpaper.TryTake("new-image", false, true, 180_001) &&
+              manualWallpaper.TryTake("new-image", false, false, 180_002),
+            "a manual wallpaper waits for the current upload rather than losing the request");
+        manualWallpaper.Request("same-image", 190_000, allowUnchanged: true);
+        check(manualWallpaper.TryTake("same-image", false, false, 190_001),
+            "explicitly reselecting the current wallpaper can restore the keyboard image");
+        manualWallpaper.Request("old-image", 200_000);
+        check(!manualWallpaper.TryTake("old-image", false, false, 200_001) &&
+              !manualWallpaper.TryTake("later-automatic-image", false, false, 200_002),
+            "a failed manual download cannot wake the keyboard on a later automatic rotation");
+        manualWallpaper.Request("old-image", 210_000);
+        check(!manualWallpaper.TryTake("late-image", false, false, 330_000),
+            "abandoned wallpaper requests expire");
+        manualWallpaper.Request("first-image", 340_000);
+        manualWallpaper.Request("second-image", 340_001, allowUnchanged: true);
+        check(manualWallpaper.TryTake("second-image", false, false, 340_002) &&
+              !manualWallpaper.TryTake("first-image", false, false, 340_003),
+            "rapid manual selections coalesce into one synchronization of the latest image");
+        manualWallpaper.Request("old-image", 350_000);
+        manualWallpaper.Cancel();
+        check(!manualWallpaper.TryTake("new-image", false, false, 350_001),
+            "disabling keyboard wallpaper sync cancels a pending manual request");
 
         FakeKeyboard device = new();
         using KeyboardHidController keyboard = new(() => device, TimeSpan.FromMilliseconds(50));
@@ -103,6 +143,21 @@ internal static class KeyboardWakeTests
         await Until(() => device.Light == next);
         check(!keyboard.WaitingForActivity,
             "real activity restores the latest colour accumulated during idle");
+
+        keyboard.SuspendUntilActivity();
+        int manualUploads = device.Uploads;
+        bool manualApplied = await keyboard.ApplyWallpaperAsync(
+            new byte[KeyboardDisplay.PayloadLength], "manually-selected-image", force: true);
+        check(manualApplied && !keyboard.WaitingForActivity &&
+              device.Uploads == manualUploads + 1 && keyboard.AppliedWallpaperId == "manually-selected-image",
+            "an explicit wallpaper choice uploads once even after keyboard idle");
+        keyboard.SuspendUntilActivity();
+        bool automaticAfterManual = await keyboard.ApplyWallpaperAsync(
+            new byte[KeyboardDisplay.PayloadLength], "later-automatic-image");
+        check(!automaticAfterManual && device.Uploads == manualUploads + 1,
+            "manual wallpaper synchronization does not disable subsequent idle protection");
+        keyboard.NotifyWake();
+        await Until(() => !keyboard.SessionNeedsLight);
 
         device.FailWrites = true;
         keyboard.SetLightColor(5, 6, 7, 128);

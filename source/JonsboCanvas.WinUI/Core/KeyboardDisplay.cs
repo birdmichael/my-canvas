@@ -21,8 +21,8 @@ internal static class KeyboardDisplay
         _ => musicPlaying || longMusic || squareMusic,
     };
 
-    internal static string ContentKey(WallpaperSnapshot snapshot) =>
-        snapshot.Id.Split('|')[0];
+    internal static string ContentKey(WallpaperSnapshot? snapshot) =>
+        snapshot?.Id.Split('|')[0] ?? "";
 
     internal static (Image Image, string Id)? SelectContent(
         bool musicMode, MusicSnapshot? music, WallpaperSnapshot? wallpaper)

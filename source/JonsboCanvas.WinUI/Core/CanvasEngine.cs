@@ -253,7 +253,23 @@ internal sealed class CanvasEngine : IDisposable
             _wallpaper.Refresh();
         SyncDesktopWallpaper();
         SyncAccentColor();
-        SyncKeyboardWallpaper();
+        // Read completion before the image: a fetch publishes its snapshot
+        // before clearing Busy, so a completed fetch cannot look unchanged here.
+        bool wallpaperBusy = _wallpaper.Busy;
+        string wallpaperKey = KeyboardDisplay.ContentKey(_wallpaper.Current);
+        bool manualKeyboardWallpaper = !CaptureMode && Config.KeyboardWallpaperSync && !KeyboardUsesMusic &&
+            _manualKeyboardWallpaper.TryTake(
+                wallpaperKey, wallpaperBusy, _keyboard.IsUploading, Environment.TickCount64);
+        manualKeyboardWallpaper &= _keyboard.WaitingForActivity ||
+            _keyboard.AppliedWallpaperId != "wallpaper:" + wallpaperKey;
+        if (manualKeyboardWallpaper)
+        {
+            _keyboardActivity.RecordExplicitAction(Environment.TickCount64);
+            ApplyLighting(MusicPlaying);
+            _keyboard.NotifyWake();
+            Log.Write("Manual wallpaper ready; syncing the keyboard once");
+        }
+        SyncKeyboardWallpaper(manualKeyboardWallpaper);
 
         if (!OutputActive) return;
         if (squareShown != "music" && !CaptureMode) _weather.Refresh();
@@ -497,6 +513,7 @@ internal sealed class CanvasEngine : IDisposable
     // ---------- desktop wallpaper and accent ----------
 
     private string _keyboardWallpaperRequestedId = "";
+    private readonly KeyboardWallpaperSyncRequest _manualKeyboardWallpaper = new();
     private DateTime _keyboardWallpaperRetryAt;
     private string _keyboardWallpaperCandidate = "";
     private DateTime _keyboardWallpaperCandidateSince;
@@ -554,13 +571,13 @@ internal sealed class CanvasEngine : IDisposable
             : new DrawingBitmap(KeyboardDisplay.Width, KeyboardDisplay.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
     }
 
-    private void SyncKeyboardWallpaper()
+    private void SyncKeyboardWallpaper(bool userRequested = false)
     {
         if (CaptureMode || !Config.KeyboardWallpaperSync || _keyboard.WaitingForActivity) return;
         var content = KeyboardDisplay.SelectContent(KeyboardUsesMusic, _music, _wallpaper.Current);
         if (content is not { } current) return;
         string id = current.Id;
-        if (string.Equals(id, _keyboard.AppliedWallpaperId, StringComparison.Ordinal)) return;
+        if (!userRequested && string.Equals(id, _keyboard.AppliedWallpaperId, StringComparison.Ordinal)) return;
 
         DateTime now = DateTime.UtcNow;
         if (id != _keyboardWallpaperCandidate)
@@ -569,9 +586,9 @@ internal sealed class CanvasEngine : IDisposable
             _keyboardWallpaperCandidateSince = now;
         }
         double settleSeconds = id.StartsWith("music-cover:", StringComparison.Ordinal) ? 0.3 : 2;
-        if (_keyboard.IsUploading || (now - _keyboardWallpaperCandidateSince).TotalSeconds < settleSeconds)
+        if (_keyboard.IsUploading || !userRequested && (now - _keyboardWallpaperCandidateSince).TotalSeconds < settleSeconds)
             return;
-        if (string.Equals(id, _keyboardWallpaperRequestedId, StringComparison.Ordinal) &&
+        if (!userRequested && string.Equals(id, _keyboardWallpaperRequestedId, StringComparison.Ordinal) &&
             now < _keyboardWallpaperRetryAt)
             return;
 
@@ -580,12 +597,19 @@ internal sealed class CanvasEngine : IDisposable
         try
         {
             byte[] payload = KeyboardDisplay.BuildPayload(current.Image);
-            _ = _keyboard.ApplyWallpaperAsync(payload, id);
+            _ = SendKeyboardWallpaperAsync(payload, id, userRequested);
         }
         catch (Exception exception)
         {
             Log.Write("Keyboard wallpaper preparation failed: " + exception.Message);
         }
+    }
+
+    private async Task SendKeyboardWallpaperAsync(byte[] payload, string id, bool userRequested)
+    {
+        bool applied = await _keyboard.ApplyWallpaperAsync(payload, id, force: userRequested).ConfigureAwait(false);
+        if (userRequested && !applied)
+            Notice?.Invoke(Localization.Get("Wallpaper.Keyboard.Failed"));
     }
 
     public async Task<bool> ApplyKeyboardWallpaperAsync(bool force = false)
@@ -615,6 +639,7 @@ internal sealed class CanvasEngine : IDisposable
     public void SetKeyboardWallpaperSync(bool enabled)
     {
         if (enabled) RecordKeyboardActivity();
+        else _manualKeyboardWallpaper.Cancel();
         Config.KeyboardWallpaperSync = enabled;
         _keyboardWallpaperRequestedId = "";
         _keyboardWallpaperRetryAt = DateTime.MinValue;
@@ -753,24 +778,52 @@ internal sealed class CanvasEngine : IDisposable
 
     public void SelectWallpaper(string path)
     {
-        Run(() => _wallpaper.Select(path));
+        Run(() =>
+        {
+            _wallpaper.Select(path);
+            if (string.Equals(_wallpaper.Current?.SourcePath, path, StringComparison.OrdinalIgnoreCase))
+                RequestManualKeyboardWallpaper("", allowUnchanged: true);
+        });
         Invalidate();
     }
 
-    public bool NextWallpaper() => _wallpaper.Next();
+    public bool NextWallpaper()
+    {
+        string previousId = KeyboardDisplay.ContentKey(_wallpaper.Current);
+        if (!_wallpaper.Next()) return false;
+        RequestManualKeyboardWallpaper(previousId);
+        return true;
+    }
+
+    private void RequestManualKeyboardWallpaper(string previousId, bool allowUnchanged = false)
+    {
+        if (CaptureMode || !Config.KeyboardWallpaperSync) return;
+        Run(() =>
+        {
+            if (Config.KeyboardWallpaperSync)
+                _manualKeyboardWallpaper.Request(previousId, Environment.TickCount64, allowUnchanged);
+            Invalidate();
+        });
+    }
 
     public void SetWallpaperQuery(string query)
     {
+        string previousId = KeyboardDisplay.ContentKey(_wallpaper.Current);
         Config.WallpaperQuery = string.IsNullOrWhiteSpace(query) ? "landscape,mountains,space,forest,lake,night sky" : query.Trim();
         _wallpaper.SetWallhavenQuery(Config.WallpaperQuery);
         SaveConfig();
-        if (Config.WallpaperSource == "wallhaven") _wallpaper.Next();
+        if (Config.WallpaperSource == "wallhaven")
+        {
+            _wallpaper.Next();
+            RequestManualKeyboardWallpaper(previousId);
+        }
         Invalidate();
     }
 
     // "bing", "wallhaven" or "custom" with a picture; false when the picture could not be read.
     public async Task<bool> SetWallpaperSourceAsync(string source, string path)
     {
+        string previousId = KeyboardDisplay.ContentKey(_wallpaper.Current);
         bool loaded = await RunAsync(() =>
         {
             bool ok = _wallpaper.UseCustom(source == "custom" ? path : null);
@@ -780,6 +833,7 @@ internal sealed class CanvasEngine : IDisposable
         if (!loaded) return false;
         Config.WallpaperSource = source;
         Config.WallpaperPath = path;
+        RequestManualKeyboardWallpaper(previousId, allowUnchanged: source == "custom");
         SaveConfig();
         Invalidate();
         return true;

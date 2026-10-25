@@ -37,7 +37,9 @@ internal sealed class KeyboardActivitySignal
         }
     }
 
-    internal void RecordReconnect(long now)
+    internal void RecordReconnect(long now) => RecordExplicitAction(now);
+
+    internal void RecordExplicitAction(long now)
     {
         lock (_sync) _lastInputAt = now;
     }
