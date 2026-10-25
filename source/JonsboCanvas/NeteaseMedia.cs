@@ -128,7 +128,7 @@ namespace JonsboCanvas
                 "netease", "CloudMusic");
             _webDataDirectory = Path.Combine(_root, "webdata", "file");
             _serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
-            _bridge = new NeteaseCdpBridge(debugPort);
+            _bridge = new NeteaseCdpBridge(debugPort, autoConnect: true);
         }
 
         public MusicSnapshot Collect()

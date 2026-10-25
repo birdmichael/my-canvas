@@ -24,6 +24,7 @@ void Check(bool condition, string name)
 }
 
 string scratch = Path.Combine(Path.GetTempPath(), "MyCanvasTests-" + Guid.NewGuid().ToString("N"));
+NeteaseAutoConnectTests.Run(Check);
 Directory.CreateDirectory(scratch);
 foreach (string property in new[] { "DataDirectory", "RuntimeDirectory" })
     typeof(EmbeddedRuntime).GetProperty(property).SetValue(null, scratch);

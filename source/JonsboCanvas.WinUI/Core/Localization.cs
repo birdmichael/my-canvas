@@ -47,7 +47,7 @@ public static class Localization
 
         ["Content.Title"] = "画面", ["Content.Subtitle"] = "屏幕上的歌词、时钟和硬件读数怎么显示。",
         ["Content.Music"] = "音乐", ["Content.Sync"] = "网易云实时同步",
-        ["Content.Sync.Hint"] = "只读取网易云的播放进度和歌词，不会改动播放。",
+        ["Content.Sync.Hint"] = "启动网易云后自动同步；首次接入可能重启播放器，播放会短暂停止。",
         ["Content.Lyrics"] = "歌词样式", ["Content.Lyrics.Hint"] = "长条屏音乐画面的歌词效果，颜色取自专辑封面。",
         ["Content.Fps"] = "动画帧率", ["Content.Fps.Hint"] = "越高越流畅，CPU 和 USB 占用也越高。",
         ["Content.Clock"] = "时钟", ["Content.Clock24"] = "24 小时制", ["Content.Clock24.Hint"] = "方屏时钟的时间格式。",
@@ -169,7 +169,7 @@ public static class Localization
 
         ["Content.Title"] = "Content", ["Content.Subtitle"] = "How lyrics, the clock and hardware readings look on the screens.",
         ["Content.Music"] = "Music", ["Content.Sync"] = "NetEase live sync",
-        ["Content.Sync.Hint"] = "Only reads playback progress and lyrics; never changes what is playing.",
+        ["Content.Sync.Hint"] = "Syncs automatically when NetEase starts; connecting may restart the player and briefly interrupt playback.",
         ["Content.Lyrics"] = "Lyric style", ["Content.Lyrics.Hint"] = "Lyric effect on the long screen; colours come from the album art.",
         ["Content.Fps"] = "Animation frame rate", ["Content.Fps.Hint"] = "Smoother at higher rates, at the cost of CPU and USB load.",
         ["Content.Clock"] = "Clock", ["Content.Clock24"] = "24-hour time", ["Content.Clock24.Hint"] = "Time format on the square screen clock.",

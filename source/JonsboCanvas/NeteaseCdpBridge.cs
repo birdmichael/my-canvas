@@ -71,6 +71,7 @@ namespace JonsboCanvas
         private readonly CancellationTokenSource _cancel = new CancellationTokenSource();
         private readonly Thread _worker;
         private readonly int _port;
+        private readonly NeteaseAutoConnectPolicy _autoConnect;
         private ClientWebSocket _socket;
         private int _commandId;
         private int _installCommandId;
@@ -101,9 +102,10 @@ namespace JonsboCanvas
             }
         }
 
-        public NeteaseCdpBridge(int port)
+        public NeteaseCdpBridge(int port, bool autoConnect = false)
         {
             _port = port;
+            _autoConnect = autoConnect ? new NeteaseAutoConnectPolicy() : null;
             _worker = new Thread(WorkerLoop);
             _worker.IsBackground = true;
             _worker.Name = "Jonsbo-Netease-CDP";
@@ -145,9 +147,21 @@ namespace JonsboCanvas
                     string endpoint = FindDebuggerEndpoint();
                     if (string.IsNullOrWhiteSpace(endpoint))
                     {
+                        if (_autoConnect != null)
+                        {
+                            NeteaseLauncher.RunningInstance instance = NeteaseLauncher.GetRunningInstance();
+                            if (_autoConnect.ShouldRestart(instance == null ? "" : instance.Identity,
+                                instance != null && NeteaseLauncher.IsDebugPortOpen(_port), DateTime.UtcNow))
+                            {
+                                NeteaseLauncher.AutoConnect(_port, instance.Identity, _cancel.Token);
+                                _autoConnect.RememberReplacement(NeteaseLauncher.GetRunningInstance()?.Identity);
+                            }
+                        }
                         Wait(2000);
                         continue;
                     }
+                    if (_autoConnect != null)
+                        _autoConnect.ShouldRestart(NeteaseLauncher.GetRunningInstance()?.Identity, true, DateTime.UtcNow);
 
                     using (ClientWebSocket socket = new ClientWebSocket())
                     {
@@ -536,9 +550,10 @@ return window.__jonsboPlaybackProtocolVersion===8?'jonsbo-installed-v8-'+window.
                     socket.Abort();
             }
             catch { }
-            if (_worker != null && _worker.IsAlive)
-                _worker.Join(1500);
-            _cancel.Dispose();
+            // An automatic tray exit can be waiting for the process to stop.
+            // Do not dispose its cancellation handle while the worker uses it.
+            if (_worker == null || !_worker.IsAlive || _worker.Join(6500))
+                _cancel.Dispose();
         }
     }
 }

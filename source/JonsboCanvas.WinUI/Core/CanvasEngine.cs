@@ -101,6 +101,8 @@ internal sealed class CanvasEngine : IDisposable
 
     public void Start()
     {
+        if (!CaptureMode)
+            _media = new NeteaseMediaCollector(Config.NeteaseDebugPort);
         _thread.Start();
         if (!CaptureMode && Config.AutoConnect && StartupError == null)
             _ = ConnectAsync(confirmTakeover: null);
