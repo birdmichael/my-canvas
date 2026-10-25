@@ -3,6 +3,30 @@ using System.Drawing.Imaging;
 using JonsboCanvas;
 using JonsboCanvas_WinUI;
 
+if (args.Length >= 1 && args[0] == "--keyboard-wake-regressions")
+{
+    await KeyboardWakeTests.RunAsync((condition, name) =>
+    {
+        if (!condition) throw new Exception("FAIL: " + name);
+        Console.WriteLine("PASS: " + name);
+    });
+    return;
+}
+
+if (args.Length >= 1 && args[0] == "--keyboard-wake-light-check")
+{
+    await KeyboardHardwareChecks.CheckWakeLightingAsync();
+    return;
+}
+
+if (args.Length >= 1 && args[0] == "--keyboard-read-light")
+{
+    using KeyboardHidController keyboard = new();
+    byte[] state = await keyboard.ReadStateAsync(0x25, 0x0E);
+    Console.WriteLine($"KEYBOARD_LIGHT rgb={state[9]},{state[10]},{state[11]} brightness={state[5]}");
+    return;
+}
+
 if (args.Length >= 2 && args[0] == "--keyboard-upload-light-check")
 {
     await KeyboardHardwareChecks.CheckUploadLightingAsync(args[1]);
@@ -25,6 +49,7 @@ void Check(bool condition, string name)
 
 string scratch = Path.Combine(Path.GetTempPath(), "MyCanvasTests-" + Guid.NewGuid().ToString("N"));
 NeteaseAutoConnectTests.Run(Check);
+await KeyboardWakeTests.RunAsync(Check);
 Directory.CreateDirectory(scratch);
 foreach (string property in new[] { "DataDirectory", "RuntimeDirectory" })
     typeof(EmbeddedRuntime).GetProperty(property).SetValue(null, scratch);

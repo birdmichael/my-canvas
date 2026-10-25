@@ -5,6 +5,54 @@ using JonsboCanvas_WinUI;
 // Opt-in hardware soak; never runs as part of the normal render tests.
 internal static class KeyboardHardwareChecks
 {
+    public static async Task CheckWakeLightingAsync()
+    {
+        using KeyboardHidController keyboard = new();
+        byte[] original = await keyboard.ReadStateAsync(0x25, 0x0E);
+        Console.WriteLine($"INITIAL_LIGHT rgb={original[9]},{original[10]},{original[11]} brightness={original[5]}");
+        try
+        {
+            keyboard.SetLightColor(180, 0, 150, 64);
+            await ExpectLight(keyboard, new KeyboardLight(180, 0, 150, 25));
+            await Task.Delay(2200);
+            // Simulate firmware restoring its red profile while MyCanvas still
+            // has a valid session and a cached magenta colour.
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            object gate = typeof(KeyboardHidController).GetField("_deviceSync", flags)!.GetValue(keyboard)!;
+            IKeyboardDeviceSession session = (IKeyboardDeviceSession)typeof(KeyboardHidController)
+                .GetField("_session", flags)!.GetValue(keyboard)!;
+            lock (gate) session.SetStaticColor(255, 0, 0, 40);
+            byte[] reset = await keyboard.ReadStateAsync(0x25, 0x0E);
+            Console.WriteLine($"SIMULATED_WAKE_RESET rgb={reset[9]},{reset[10]},{reset[11]} brightness={reset[5]}");
+            if (!KeyboardLightDedupPolicy.MatchesReadback(new KeyboardLight(255, 0, 0, 40), reset))
+                throw new Exception("Unable to establish the red firmware-reset test state");
+            keyboard.NotifyWake();
+            await ExpectLight(keyboard, new KeyboardLight(180, 0, 150, 25));
+            await Task.Delay(2300);
+            byte[] restored = await keyboard.ReadStateAsync(0x25, 0x0E);
+            if (!KeyboardLightDedupPolicy.MatchesReadback(new KeyboardLight(180, 0, 150, 25), restored))
+                throw new Exception("Wake lighting did not remain restored");
+            Console.WriteLine($"WAKE_LIGHTING_PASS rgb={restored[9]},{restored[10]},{restored[11]} brightness={restored[5]} diagnostics={keyboard.Diagnostics}");
+        }
+        finally
+        {
+            byte brightness = (byte)Math.Clamp(Math.Round(original[5] * 255 / 100.0), 0, 255);
+            keyboard.SetLightColor(original[9], original[10], original[11], brightness);
+            await ExpectLight(keyboard, new KeyboardLight(original[9], original[10], original[11], original[5]));
+        }
+    }
+
+    private static async Task ExpectLight(KeyboardHidController keyboard, KeyboardLight expected)
+    {
+        for (int attempt = 0; attempt < 40; attempt++)
+        {
+            await Task.Delay(100);
+            byte[] state = await keyboard.ReadStateAsync(0x25, 0x0E);
+            if (KeyboardLightDedupPolicy.MatchesReadback(expected, state)) return;
+        }
+        throw new Exception("Keyboard lighting readback mismatch: " + expected);
+    }
+
     public static async Task CheckUploadLightingAsync(string imagePath)
     {
         using Bitmap image = new(imagePath);

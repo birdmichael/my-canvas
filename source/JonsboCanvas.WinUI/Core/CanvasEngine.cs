@@ -41,7 +41,6 @@ internal sealed class CanvasEngine : IDisposable
     private DateTime _musicAt = DateTime.MinValue;
     private DateTime _lastFrameAt = DateTime.MinValue;
     private DateTime _resumeRecoveryStartedAt = DateTime.MinValue;
-    private int _keyboardSessionGeneration;
     private uint _lastUserInputTick;
     private long _lastUserInputObservedAt = -1;
     private int _forceFrame;
@@ -184,6 +183,9 @@ internal sealed class CanvasEngine : IDisposable
             }
 
             DateTime now = DateTime.UtcNow;
+            if (!CaptureMode && DisplayResumePolicy.ShouldRestartDisplay(
+                    lastLoop, now, connectionRequested: true))
+                _keyboard.NotifyWake();
             bool screensConnected = _display.Connected;
             if (DisplayResumePolicy.ShouldRestartDisplay(
                     lastLoop, now, _connectionRequested, _resumeRecoveryStartedAt, screensConnected))
@@ -243,15 +245,6 @@ internal sealed class CanvasEngine : IDisposable
         RefreshMusicLightingColor();
         UpdateBeatLoop(MusicPlaying);
         ApplyLighting(MusicPlaying);
-        // A newly opened keyboard HID session may have restored its cached
-        // default colour. Re-apply the engine's current colour immediately.
-        int sessionGeneration = _keyboard.SessionGeneration;
-        if (sessionGeneration != _keyboardSessionGeneration)
-        {
-            _keyboardSessionGeneration = sessionGeneration;
-            _keyboard.ForgetCachedLightAfterReconnect();
-            ApplyLighting(MusicPlaying);
-        }
         if ((longShown == "hardware" || squareShown == "hardware") &&
             (_metrics == null || (now - _metricsAt).TotalMilliseconds >= Config.RefreshMilliseconds))
         {
@@ -529,9 +522,12 @@ internal sealed class CanvasEngine : IDisposable
         _lastUserInputTick = inputTick;
         _lastUserInputObservedAt = now;
         if (!hasBaseline ||
-            !KeyboardWallpaperWakePolicy.IsWakeTransition(now, previousInputAt) ||
-            !Config.KeyboardWallpaperSync)
+            !KeyboardWallpaperWakePolicy.IsWakeTransition(now, previousInputAt))
             return;
+
+        _keyboard.NotifyWake();
+        Log.Write("Keyboard activity after idle; restoring and verifying current lighting");
+        if (!Config.KeyboardWallpaperSync) return;
 
         var content = KeyboardDisplay.SelectContent(KeyboardUsesMusic, _music, _wallpaper.Current);
         if (content is not { } current ||

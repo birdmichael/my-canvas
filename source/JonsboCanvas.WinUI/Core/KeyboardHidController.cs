@@ -6,6 +6,13 @@ using System.Runtime.InteropServices;
 
 namespace JonsboCanvas_WinUI;
 
+internal interface IKeyboardDeviceSession : IDisposable
+{
+    byte[] ReadState(byte command, byte subCommand);
+    void SetStaticColor(byte r, byte g, byte b, byte brightness);
+    void UploadOledImage(byte[] imageData);
+}
+
 // The ROG Azoth 96 HE uses the same private command transport as Gear Link's
 // WebHID page. The receiver exposes the keyboard as a 64-byte control report;
 // both lighting and the OLED image stream travel over that report.
@@ -34,7 +41,10 @@ internal sealed class KeyboardHidController : IDisposable
     private readonly object _deviceSync = new();
     private readonly object _lightSync = new();
     private readonly SemaphoreSlim _wallpaperGate = new(1, 1);
-    private DeviceSession? _session;
+    private readonly Func<IKeyboardDeviceSession> _openSession;
+    private readonly TimeSpan _verificationDelay;
+    private readonly bool _useHardware;
+    private IKeyboardDeviceSession? _session;
     private DateTime _connectRetryAfter;
     private volatile bool _disposed;
     private KeyboardLight? _pendingLight;
@@ -43,6 +53,7 @@ internal sealed class KeyboardHidController : IDisposable
     private KeyboardLight? _appliedLight;
     private bool _sessionNeedsLight;
     private int _lightGeneration;
+    private DateTime _verifyLightAt = DateTime.MaxValue;
     private string _appliedWallpaperId = "";
     private DateTime _lastFailureLog;
     private DateTime _lastLightSuccessLog;
@@ -64,6 +75,14 @@ internal sealed class KeyboardHidController : IDisposable
     internal int SessionGeneration => Volatile.Read(ref _sessionCount);
     internal bool SessionNeedsLight => Volatile.Read(ref _sessionNeedsLight);
 
+    internal KeyboardHidController(Func<IKeyboardDeviceSession>? openSession = null,
+        TimeSpan? verificationDelay = null)
+    {
+        _openSession = openSession ?? DeviceSession.Open;
+        _useHardware = openSession == null;
+        _verificationDelay = verificationDelay ?? TimeSpan.FromSeconds(2);
+    }
+
     internal bool IsReceiverPresent()
     {
         try
@@ -81,21 +100,19 @@ internal sealed class KeyboardHidController : IDisposable
 
     // Cheap local status check; it never sends a HID command and is throttled
     // because ROG Live Service updates this XML asynchronously.
-    internal void CheckExternalReconnect()
+    internal void CheckExternalReconnect(string presencePath = KeyboardExternalPresence.DefaultPath)
     {
         if (_disposed || DateTime.UtcNow - _lastPresenceCheck < TimeSpan.FromSeconds(2)) return;
         _lastPresenceCheck = DateTime.UtcNow;
-        bool present = KeyboardExternalPresence.IsKeyboardPresent();
+        bool present = KeyboardExternalPresence.IsKeyboardPresent(presencePath);
         bool sessionAlive = _session != null;
         bool becamePresent = present && !_lastKeyboardPresent;
         bool presentWithoutSession = present && !sessionAlive && _sessionCount == 0;
-        if (present && !sessionAlive && (becamePresent || presentWithoutSession))
+        if (present && (becamePresent || presentWithoutSession))
         {
-            LogInfo("ROG keyboard reconnected outside MyCanvas; reopening HID session");
+            LogInfo("ROG keyboard reconnected outside MyCanvas; restoring device state");
             ForgetCachedLightAfterReconnect();
-            DropSession();
             Volatile.Write(ref _appliedWallpaperId, "");
-            Volatile.Write(ref _state, (int)ScreenState.Searching);
         }
         _lastKeyboardPresent = present;
     }
@@ -103,20 +120,29 @@ internal sealed class KeyboardHidController : IDisposable
     public void RequestReconnect()
     {
         DropSession();
-        lock (_lightSync) _appliedLight = null;
+        NotifyWake();
         Volatile.Write(ref _appliedWallpaperId, "");
         Volatile.Write(ref _state, (int)ScreenState.Searching);
     }
 
-    internal void ForgetCachedLightAfterReconnect()
+    internal void ForgetCachedLightAfterReconnect() => NotifyWake();
+
+    internal void NotifyWake()
     {
         lock (_lightSync)
         {
+            if (_disposed) return;
             _appliedLight = null;
-            _pendingLight = null;
-            _latestLight = null;
+            _pendingLight = _latestLight;
+            _sessionNeedsLight = true;
+            _verifyLightAt = DateTime.UtcNow + _verificationDelay;
             Interlocked.Increment(ref _lightGeneration);
+            ResetRetryBackoff();
+            Monitor.PulseAll(_lightSync);
+            if (_latestLight == null || _lightWorkerRunning) return;
+            _lightWorkerRunning = true;
         }
+        _ = Task.Run(LightLoop);
     }
 
     internal void ResetRetryBackoff() => Volatile.Write(ref _consecutiveFailures, 0);
@@ -137,6 +163,7 @@ internal sealed class KeyboardHidController : IDisposable
                 !KeyboardLightDedupPolicy.ShouldApply(next, _appliedLight, _pendingLight)) return;
             _pendingLight = next;
             _latestLight = _pendingLight;
+            Monitor.PulseAll(_lightSync);
             if (_lightWorkerRunning) return;
             _lightWorkerRunning = true;
         }
@@ -167,7 +194,7 @@ internal sealed class KeyboardHidController : IDisposable
                     {
                         lock (_deviceSync)
                         {
-                            DeviceSession session = EnsureSession();
+                            IKeyboardDeviceSession session = EnsureSession();
                             session.UploadOledImage(payload);
                             // Upload mode can override the visible RGB effect. Restore
                             // before releasing the shared transport, even if static
@@ -205,7 +232,7 @@ internal sealed class KeyboardHidController : IDisposable
 
     // Caller holds _deviceSync; do not fail/re-upload a completed OLED image
     // merely because the following independent lighting command needs a retry.
-    private void RestoreLightingAfterUpload(DeviceSession session)
+    private void RestoreLightingAfterUpload(IKeyboardDeviceSession session)
     {
         KeyboardLight? light;
         lock (_lightSync) light = _latestLight;
@@ -245,25 +272,31 @@ internal sealed class KeyboardHidController : IDisposable
         {
             KeyboardLight? request;
             int generation;
+            bool verify;
             lock (_lightSync)
             {
+                while (!_disposed && _pendingLight == null && _latestLight != null &&
+                    _verifyLightAt != DateTime.MaxValue && DateTime.UtcNow < _verifyLightAt)
+                {
+                    TimeSpan remaining = _verifyLightAt - DateTime.UtcNow;
+                    if (remaining > TimeSpan.Zero) Monitor.Wait(_lightSync, remaining);
+                }
+                if (_disposed) { _lightWorkerRunning = false; return; }
                 request = _pendingLight;
                 _pendingLight = null;
-                generation = _lightGeneration;
-            }
-
-            if (request == null)
-            {
-                Thread.Sleep(20);
-                lock (_lightSync)
+                verify = request == null && _latestLight != null &&
+                    _verifyLightAt != DateTime.MaxValue && DateTime.UtcNow >= _verifyLightAt;
+                if (verify)
                 {
-                    if (_pendingLight == null)
-                    {
-                        _lightWorkerRunning = false;
-                        return;
-                    }
+                    request = _latestLight;
+                    _verifyLightAt = DateTime.MaxValue;
                 }
-                continue;
+                generation = _lightGeneration;
+                if (request == null)
+                {
+                    _lightWorkerRunning = false;
+                    return;
+                }
             }
 
             try
@@ -275,7 +308,6 @@ internal sealed class KeyboardHidController : IDisposable
                         if (generation != _lightGeneration)
                         {
                             request = null;
-                            _pendingLight = null;
                         }
                         else
                         {
@@ -284,7 +316,7 @@ internal sealed class KeyboardHidController : IDisposable
                         }
                     }
                     if (request == null) continue;
-                    DeviceSession session = EnsureSession();
+                    IKeyboardDeviceSession session = EnsureSession();
                     lock (_lightSync)
                     {
                         if (generation != _lightGeneration) request = null;
@@ -292,16 +324,30 @@ internal sealed class KeyboardHidController : IDisposable
                     }
                     if (request == null) continue;
                     sinceWrite.Restart();
-                    session.SetStaticColor(request.Value.R, request.Value.G, request.Value.B, request.Value.Brightness);
+                    if (!verify || !KeyboardLightDedupPolicy.MatchesReadback(request.Value, session.ReadState(0x25, 0x0E)))
+                    {
+                        session.SetStaticColor(request.Value.R, request.Value.G, request.Value.B, request.Value.Brightness);
+                        Interlocked.Increment(ref _lightWrites);
+                        if (verify)
+                            LogInfo("lighting reset detected after wake; restored the current colour");
+                    }
+                    if (verify)
+                    {
+                        if (!KeyboardLightDedupPolicy.MatchesReadback(request.Value, session.ReadState(0x25, 0x0E)))
+                            throw new IOException("ROG lighting readback did not match the requested colour");
+                        LogInfo($"lighting verified rgb={request.Value.R},{request.Value.G},{request.Value.B} brightness={request.Value.Brightness}");
+                    }
+                    lock (_lightSync)
+                    {
+                        if (generation == _lightGeneration)
+                        {
+                            _appliedLight = request;
+                            _sessionNeedsLight = false;
+                        }
+                    }
                 }
-                Interlocked.Increment(ref _lightWrites);
                 Volatile.Write(ref _consecutiveFailures, 0);
                 _lastLightError = "";
-                lock (_lightSync)
-                {
-                    _appliedLight = request;
-                    _sessionNeedsLight = false;
-                }
                 if ((DateTime.UtcNow - _lastLightSuccessLog).TotalSeconds >= 10)
                 {
                     _lastLightSuccessLog = DateTime.UtcNow;
@@ -319,11 +365,16 @@ internal sealed class KeyboardHidController : IDisposable
                 lock (_lightSync)
                 {
                     _appliedLight = null;
-                    _pendingLight ??= request;
+                    _pendingLight ??= _latestLight;
+                    DateTime retryAt = DateTime.UtcNow + KeyboardRetryBackoffPolicy.NextDelay(ConsecutiveFailures);
+                    // New colour frames do not bypass backoff. A real wake signal
+                    // changes the generation and releases this wait immediately.
+                    while (!_disposed && generation == _lightGeneration && DateTime.UtcNow < retryAt)
+                    {
+                        TimeSpan remaining = retryAt - DateTime.UtcNow;
+                        if (remaining > TimeSpan.Zero) Monitor.Wait(_lightSync, remaining);
+                    }
                 }
-                Thread.Sleep((int)Math.Min(
-                    KeyboardRetryBackoffPolicy.NextDelay(ConsecutiveFailures).TotalMilliseconds,
-                    int.MaxValue));
                 continue;
             }
 
@@ -333,7 +384,7 @@ internal sealed class KeyboardHidController : IDisposable
     }
 
     // Caller holds _deviceSync.
-    private DeviceSession EnsureSession()
+    private IKeyboardDeviceSession EnsureSession()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_session != null) return _session;
@@ -344,7 +395,7 @@ internal sealed class KeyboardHidController : IDisposable
         try
         {
             Volatile.Write(ref _state, (int)ScreenState.Searching);
-            _session = DeviceSession.Open();
+            _session = _openSession();
             _session.ReadState(0x21, 0);
             // Custom-image mode does not identify which image is on the OLED.
             // A new session therefore cannot prove that the cached wallpaper is
@@ -357,7 +408,7 @@ internal sealed class KeyboardHidController : IDisposable
             {
                 _appliedLight = KeyboardLightDedupPolicy.AfterSessionOpened();
                 _sessionNeedsLight = true;
-                Interlocked.Increment(ref _lightGeneration);
+                _verifyLightAt = DateTime.UtcNow + _verificationDelay;
             }
             _connectRetryAfter = DateTime.MinValue;
             Volatile.Write(ref _state, (int)ScreenState.Connected);
@@ -388,7 +439,12 @@ internal sealed class KeyboardHidController : IDisposable
         }
     }
 
-    private static void LogInfo(string message)
+    private void LogInfo(string message)
+    {
+        if (_useHardware) LogDeviceInfo(message);
+    }
+
+    private static void LogDeviceInfo(string message)
     {
         try
         {
@@ -415,6 +471,7 @@ internal sealed class KeyboardHidController : IDisposable
         lock (_lightSync)
         {
             _pendingLight = null;
+            Monitor.PulseAll(_lightSync);
         }
         lock (_deviceSync)
         {
@@ -425,7 +482,7 @@ internal sealed class KeyboardHidController : IDisposable
         // In-flight uploads release this gate after noticing disposal.
     }
 
-    private sealed class DeviceSession : IDisposable
+    private sealed class DeviceSession : IKeyboardDeviceSession
     {
         private const int OledPacketDataLength = 57;
         private const int OledPacketsPerBatch = 20;
@@ -591,7 +648,7 @@ internal sealed class KeyboardHidController : IDisposable
                         if (pid != KeyboardWirelessProductId) continue;
                         KeyboardReportId = scan[offset + 2];
                         if (KeyboardReportId != _keyboard.OutputReportIds.FirstOrDefault())
-                            LogInfo($"receiver reports keyboard report 0x{KeyboardReportId:X2}");
+                            LogDeviceInfo($"receiver reports keyboard report 0x{KeyboardReportId:X2}");
                         Thread.Sleep(120);
                         return;
                     }
@@ -814,7 +871,7 @@ internal sealed class KeyboardHidController : IDisposable
                             if (error != ErrorIoPending)
                             {
                                 if (!_stop.IsCancellationRequested)
-                                    LogInfo($"{name} HID read failed: {error}");
+                                    LogDeviceInfo($"{name} HID read failed: {error}");
                                 break;
                             }
                             // Poll only the completion event, never the device. Cancel
@@ -827,7 +884,7 @@ internal sealed class KeyboardHidController : IDisposable
                         {
                             int error = Marshal.GetLastWin32Error();
                             if (!_stop.IsCancellationRequested)
-                                LogInfo($"{name} HID overlapped read failed: {error}");
+                                LogDeviceInfo($"{name} HID overlapped read failed: {error}");
                             break;
                         }
                         if (read > 0)
